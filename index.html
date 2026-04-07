@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call Recorder Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0e17;
+    --surface:  #111827;
+    --border:   #1e2d40;
+    --accent:   #00e5ff;
+    --accent2:  #7c3aed;
+    --green:    #22c55e;
+    --red:      #ef4444;
+    --yellow:   #f59e0b;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-main: 'Syne', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--font-main); min-height:100vh; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* ── Header ── */
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 32px; border-bottom:1px solid var(--border);
+    background:var(--surface);
+    position:sticky; top:0; z-index:100;
+  }
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .logo h1 { font-size:18px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
+  .logo span { color:var(--accent); }
+
+  #status-bar { font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+  #status-bar.loading { color:var(--yellow); }
+  #status-bar.error   { color:var(--red); }
+  #status-bar.ok      { color:var(--green); }
+
+  /* ── Config Panel ── */
+  #config-panel {
+    background:linear-gradient(135deg, #0f1a2e, #1a0f2e);
+    border:1px solid var(--accent2);
+    border-radius:12px; padding:28px; margin:24px 32px;
+  }
+  #config-panel h2 { font-size:14px; letter-spacing:2px; color:var(--accent); margin-bottom:20px; text-transform:uppercase; }
+  .config-grid { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end; }
+  .field label { display:block; font-size:11px; color:var(--muted); margin-bottom:6px; letter-spacing:1px; text-transform:uppercase; font-family:var(--font-mono); }
+  .field input {
+    width:100%; background:#0a0e17; border:1px solid var(--border);
+    color:var(--text); padding:10px 14px; border-radius:8px;
+    font-family:var(--font-mono); font-size:13px; outline:none;
+    transition:border-color .2s;
+  }
+  .field input:focus { border-color:var(--accent); }
+  .btn {
+    padding:10px 22px; border-radius:8px; border:none; cursor:pointer;
+    font-family:var(--font-main); font-weight:600; font-size:13px;
+    letter-spacing:1px; text-transform:uppercase; transition:all .2s;
+  }
+  .btn-primary { background:var(--accent); color:#000; }
+  .btn-primary:hover { background:#33eeff; box-shadow:0 0 20px rgba(0,229,255,.3); }
+  .btn-sm { padding:6px 14px; font-size:11px; }
+
+  /* ── Stats ── */
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding:0 32px 24px; }
+  .stat-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:20px;
+    position:relative; overflow:hidden;
+    transition:border-color .2s;
+  }
+  .stat-card:hover { border-color:var(--accent); }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .stat-label { font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; font-family:var(--font-mono); }
+  .stat-value { font-size:32px; font-weight:800; margin:8px 0 4px; color:var(--text); }
+  .stat-sub { font-size:11px; color:var(--muted); font-family:var(--font-mono); }
+  .stat-card.green .stat-value { color:var(--green); }
+  .stat-card.cyan  .stat-value { color:var(--accent); }
+  .stat-card.purple .stat-value { color:#a78bfa; }
+  .stat-card.yellow .stat-value { color:var(--yellow); }
+
+  /* ── Filters ── */
+  .filters {
+    display:flex; gap:12px; align-items:center;
+    padding:0 32px 20px; flex-wrap:wrap;
+  }
+  .filter-label { font-size:11px; color:var(--muted); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:1px; }
+  select {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:8px 14px; border-radius:8px; font-family:var(--font-mono);
+    font-size:12px; cursor:pointer; outline:none;
+  }
+  input[type=date] {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:8px 14px; border-radius:8px; font-family:var(--font-mono);
+    font-size:12px; outline:none;
+  }
+  .filter-clear { color:var(--muted); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-mono); }
+  .filter-clear:hover { color:var(--text); }
+  .search-box {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:8px 14px; border-radius:8px; font-family:var(--font-mono);
+    font-size:12px; outline:none; width:200px;
+  }
+  .search-box:focus { border-color:var(--accent); }
+
+  /* ── Table ── */
+  .table-wrap { padding:0 32px 32px; }
+  .table-header {
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;
+  }
+  .table-header h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-family:var(--font-mono); }
+  #count-label { font-size:12px; color:var(--muted); font-family:var(--font-mono); }
+
+  table { width:100%; border-collapse:collapse; }
+  thead th {
+    text-align:left; padding:10px 14px; font-size:10px;
+    color:var(--muted); letter-spacing:1.5px; text-transform:uppercase;
+    font-family:var(--font-mono); border-bottom:1px solid var(--border);
+    cursor:pointer; user-select:none;
+  }
+  thead th:hover { color:var(--text); }
+  tbody tr {
+    border-bottom:1px solid var(--border);
+    transition:background .15s;
+    cursor:pointer;
+  }
+  tbody tr:hover { background:rgba(0,229,255,.04); }
+  tbody td { padding:12px 14px; font-size:13px; font-family:var(--font-mono); vertical-align:middle; }
+  .badge {
+    display:inline-block; padding:3px 10px; border-radius:20px;
+    font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+  }
+  .badge-incoming { background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); }
+  .badge-outgoing { background:rgba(124,58,237,.15); color:#a78bfa; border:1px solid rgba(124,58,237,.3); }
+  .agent-tag {
+    background:rgba(0,229,255,.1); color:var(--accent);
+    padding:3px 10px; border-radius:6px; font-size:11px;
+    border:1px solid rgba(0,229,255,.2);
+  }
+  .action-btns { display:flex; gap:6px; }
+  .icon-btn {
+    background:var(--border); border:none; color:var(--text); width:30px; height:30px;
+    border-radius:6px; cursor:pointer; font-size:14px; display:flex;
+    align-items:center; justify-content:center; transition:all .15s;
+    text-decoration:none;
+  }
+  .icon-btn:hover { background:var(--accent); color:#000; }
+  .icon-btn.red:hover { background:var(--red); }
+
+  /* ── Empty / Loading ── */
+  .empty-state {
+    text-align:center; padding:60px 20px; color:var(--muted);
+  }
+  .empty-state .icon { font-size:40px; margin-bottom:12px; }
+  .empty-state p { font-family:var(--font-mono); font-size:13px; }
+
+  /* ── Audio Player Modal ── */
+  #modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.7); z-index:1000;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(4px);
+  }
+  #modal-overlay.show { display:flex; }
+  #modal {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; padding:32px; width:520px; max-width:90vw;
+    position:relative;
+  }
+  #modal h3 { font-size:14px; letter-spacing:1px; margin-bottom:6px; }
+  #modal .meta { font-size:11px; color:var(--muted); font-family:var(--font-mono); margin-bottom:20px; }
+  audio { width:100%; margin-bottom:16px; accent-color:var(--accent); }
+  .modal-actions { display:flex; gap:10px; flex-wrap:wrap; }
+  .modal-close {
+    position:absolute; top:16px; right:16px;
+    background:var(--border); border:none; color:var(--text);
+    width:32px; height:32px; border-radius:8px; cursor:pointer;
+    font-size:16px; display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover { background:var(--red); }
+
+  /* ── Agent Summary ── */
+  .agent-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; padding:0 32px 24px; }
+  .agent-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:16px; transition:border-color .2s;
+  }
+  .agent-card:hover { border-color:var(--accent); }
+  .agent-name { font-weight:600; font-size:14px; margin-bottom:8px; color:var(--accent); }
+  .agent-stats { font-family:var(--font-mono); font-size:11px; color:var(--muted); line-height:1.8; }
+
+  /* ── Section title ── */
+  .section-title {
+    padding:0 32px 12px;
+    font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--muted); font-family:var(--font-mono);
+    border-bottom:1px solid var(--border); margin-bottom:16px;
+  }
+
+  @media(max-width:768px) {
+    .config-grid { grid-template-columns:1fr; }
+    .stats-grid  { grid-template-columns:repeat(2,1fr); }
+    header, .stats-grid, .filters, .table-wrap, .agent-grid, .section-title { padding-left:16px; padding-right:16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <h1>WA Call <span>Dashboard</span></h1>
+  </div>
+  <div id="status-bar">NOT CONNECTED</div>
+</header>
+
+<!-- Config -->
+<div id="config-panel">
+  <h2>⚙ Nextcloud Connection</h2>
+  <div class="config-grid">
+    <div class="field">
+      <label>Server URL</label>
+      <input id="nc-url" type="text" placeholder="https://cloud.kuiperz.com" value="https://cloud.kuiperz.com">
+    </div>
+    <div class="field">
+      <label>Username</label>
+      <input id="nc-user" type="text" placeholder="username">
+    </div>
+    <div class="field">
+      <label>Password / App Token</label>
+      <input id="nc-pass" type="password" placeholder="password">
+    </div>
+    <button class="btn btn-primary" onclick="connect()">CONNECT</button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card cyan">
+    <div class="stat-label">Total Calls</div>
+    <div class="stat-value" id="stat-total">—</div>
+    <div class="stat-sub" id="stat-today">Loading...</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Incoming</div>
+    <div class="stat-value" id="stat-incoming">—</div>
+    <div class="stat-sub" id="stat-incoming-pct">—</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-label">Outgoing</div>
+    <div class="stat-value" id="stat-outgoing">—</div>
+    <div class="stat-sub" id="stat-outgoing-pct">—</div>
+  </div>
+  <div class="stat-card yellow">
+    <div class="stat-label">Total Duration</div>
+    <div class="stat-value" id="stat-duration">—</div>
+    <div class="stat-sub" id="stat-avg">avg per call</div>
+  </div>
+</div>
+
+<!-- Agent summary -->
+<div class="section-title">Agent Summary</div>
+<div class="agent-grid" id="agent-grid"></div>
+
+<!-- Filters -->
+<div class="filters">
+  <span class="filter-label">Filter:</span>
+  <input type="text" class="search-box" id="search" placeholder="Search caller, agent..." oninput="applyFilters()">
+  <select id="filter-agent" onchange="applyFilters()"><option value="">All Agents</option></select>
+  <select id="filter-type" onchange="applyFilters()">
+    <option value="">All Types</option>
+    <option value="Incoming">Incoming</option>
+    <option value="Outgoing">Outgoing</option>
+  </select>
+  <input type="date" id="filter-date-from" onchange="applyFilters()">
+  <input type="date" id="filter-date-to" onchange="applyFilters()">
+  <span class="filter-clear" onclick="clearFilters()">Clear filters</span>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <div class="table-header">
+    <h2>Recordings</h2>
+    <span id="count-label">—</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th onclick="sortBy('datetime')">Date & Time ↕</th>
+        <th onclick="sortBy('agent_name')">Agent ↕</th>
+        <th onclick="sortBy('caller')">Caller ↕</th>
+        <th onclick="sortBy('call_type')">Type ↕</th>
+        <th onclick="sortBy('duration_seconds')">Duration ↕</th>
+        <th onclick="sortBy('file_size_kb')">Size ↕</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+  <div id="empty-state" class="empty-state" style="display:none">
+    <div class="icon">📭</div>
+    <p>No recordings found. Connect to Nextcloud or adjust filters.</p>
+  </div>
+</div>
+
+<!-- Audio Modal -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <h3 id="modal-title">—</h3>
+    <div class="meta" id="modal-meta">—</div>
+    <audio id="audio-player" controls></audio>
+    <div class="modal-actions">
+      <a id="modal-download" class="btn btn-primary btn-sm" download>⬇ Download</a>
+      <button class="btn btn-sm" style="background:var(--surface);border:1px solid var(--border);" onclick="copyShareLink()">🔗 Copy Link</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let allRecordings = [];
+let filtered      = [];
+let sortCol       = 'datetime';
+let sortDir       = -1;
+let NC_URL='', NC_USER='', NC_PASS='', NC_DIR='';
+const BASE_PATH   = '/Customer Support/Call Recordings/WhatsApp Call';
+
+// ── Connect ────────────────────────────────────────────────────
+async function connect() {
+  NC_URL  = document.getElementById('nc-url').value.trim().replace(/\/$/, '');
+  NC_USER = document.getElementById('nc-user').value.trim();
+  NC_PASS = document.getElementById('nc-pass').value.trim();
+  NC_DIR  = BASE_PATH;
+
+  setStatus('Connecting...', 'loading');
+  localStorage.setItem('nc_url',  NC_URL);
+  localStorage.setItem('nc_user', NC_USER);
+  localStorage.setItem('nc_pass', NC_PASS);
+
+  await loadAllData();
+}
+
+function setStatus(msg, type='') {
+  const el = document.getElementById('status-bar');
+  el.textContent = msg;
+  el.className   = type;
+}
+
+// ── WebDAV helpers ─────────────────────────────────────────────
+function davUrl(path) {
+  return `${NC_URL}/remote.php/dav/files/${NC_USER}${path}`;
+}
+function authHeader() {
+  return 'Basic ' + btoa(`${NC_USER}:${NC_PASS}`);
+}
+
+async function propfind(path, depth=1) {
+  const r = await fetch(davUrl(path), {
+    method: 'PROPFIND',
+    headers: { 'Authorization': authHeader(), 'Depth': String(depth), 'Content-Type': 'application/xml' },
+    body: `<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/></d:prop></d:propfind>`
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.text();
+}
+
+function parseEntries(xml, parentPath) {
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(xml, 'application/xml');
+  const responses = [...doc.querySelectorAll('response')];
+  return responses.slice(1).map(el => {
+    const href  = decodeURIComponent(el.querySelector('href').textContent);
+    const name  = href.split('/').filter(Boolean).pop();
+    const ctype = el.querySelector('getcontenttype')?.textContent || '';
+    return { href, name, isDir: !ctype || ctype.includes('directory') || ctype === '', ctype };
+  });
+}
+
+// ── Load all JSON metadata ─────────────────────────────────────
+async function loadAllData() {
+  setStatus('Scanning folders...', 'loading');
+  allRecordings = [];
+
+  try {
+    // year folders
+    const yearXml   = await propfind(NC_DIR, 1);
+    const yearItems = parseEntries(yearXml, NC_DIR).filter(e => e.isDir);
+
+    for (const year of yearItems) {
+      const yearPath  = `/${NC_DIR}/${year.name}`.replace('//', '/');
+      try {
+        const monthXml   = await propfind(`${NC_DIR}/${year.name}`, 1);
+        const monthItems = parseEntries(monthXml).filter(e => e.isDir);
+
+        for (const month of monthItems) {
+          try {
+            const dayXml   = await propfind(`${NC_DIR}/${year.name}/${month.name}`, 1);
+            const dayItems = parseEntries(dayXml).filter(e => e.isDir);
+
+            for (const day of dayItems) {
+              try {
+                const agentXml   = await propfind(`${NC_DIR}/${year.name}/${month.name}/${day.name}`, 1);
+                const agentItems = parseEntries(agentXml).filter(e => e.isDir);
+
+                for (const agent of agentItems) {
+                  try {
+                    const fileXml   = await propfind(`${NC_DIR}/${year.name}/${month.name}/${day.name}/${agent.name}`, 1);
+                    const fileItems = parseEntries(fileXml).filter(e => !e.isDir && e.name.endsWith('.json'));
+
+                    for (const file of fileItems) {
+                      try {
+                        const jsonPath = `${NC_DIR}/${year.name}/${month.name}/${day.name}/${agent.name}/${file.name}`;
+                        const r = await fetch(davUrl(jsonPath), { headers:{ 'Authorization': authHeader() } });
+                        if (r.ok) {
+                          const meta = await r.json();
+                          meta._wavPath = jsonPath.replace('.json', '.wav');
+                          meta._agentFolder = agent.name;
+                          allRecordings.push(meta);
+                        }
+                      } catch(e) {}
+                    }
+                  } catch(e) {}
+                }
+              } catch(e) {}
+            }
+          } catch(e) {}
+        }
+      } catch(e) {}
+    }
+
+    setStatus(`✓ Connected — ${allRecordings.length} recordings loaded`, 'ok');
+    updateStats();
+    updateAgentGrid();
+    populateAgentFilter();
+    applyFilters();
+  } catch(err) {
+    setStatus(`✗ Error: ${err.message}`, 'error');
+  }
+}
+
+// ── Stats ──────────────────────────────────────────────────────
+function updateStats() {
+  const today = new Date().toISOString().slice(0,10);
+  const todayCalls = allRecordings.filter(r => r.date === today).length;
+  const incoming   = allRecordings.filter(r => r.call_type === 'Incoming').length;
+  const outgoing   = allRecordings.filter(r => r.call_type === 'Outgoing').length;
+  const total      = allRecordings.length;
+  const totalSec   = allRecordings.reduce((s,r) => s + (r.duration_seconds||0), 0);
+  const avgSec     = total ? Math.round(totalSec / total) : 0;
+
+  document.getElementById('stat-total').textContent    = total;
+  document.getElementById('stat-today').textContent    = `${todayCalls} today`;
+  document.getElementById('stat-incoming').textContent = incoming;
+  document.getElementById('stat-incoming-pct').textContent = total ? `${Math.round(incoming/total*100)}% of total` : '—';
+  document.getElementById('stat-outgoing').textContent = outgoing;
+  document.getElementById('stat-outgoing-pct').textContent = total ? `${Math.round(outgoing/total*100)}% of total` : '—';
+  document.getElementById('stat-duration').textContent = fmtDuration(totalSec);
+  document.getElementById('stat-avg').textContent      = `avg ${fmtDuration(avgSec)}`;
+}
+
+function fmtDuration(sec) {
+  if (!sec) return '0s';
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60);
+  if (h) return `${h}h ${m}m`;
+  if (m) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+// ── Agent Grid ─────────────────────────────────────────────────
+function updateAgentGrid() {
+  const agents = {};
+  allRecordings.forEach(r => {
+    const n = r.agent_name || r._agentFolder;
+    if (!agents[n]) agents[n] = { calls:0, incoming:0, outgoing:0, totalSec:0 };
+    agents[n].calls++;
+    if (r.call_type === 'Incoming') agents[n].incoming++;
+    else agents[n].outgoing++;
+    agents[n].totalSec += r.duration_seconds || 0;
+  });
+
+  const grid = document.getElementById('agent-grid');
+  grid.innerHTML = Object.entries(agents).map(([name, s]) => `
+    <div class="agent-card">
+      <div class="agent-name">👤 ${name}</div>
+      <div class="agent-stats">
+        Calls: <b style="color:var(--text)">${s.calls}</b><br>
+        Incoming: <b style="color:var(--green)">${s.incoming}</b> &nbsp; Outgoing: <b style="color:#a78bfa">${s.outgoing}</b><br>
+        Duration: <b style="color:var(--yellow)">${fmtDuration(s.totalSec)}</b>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Filters ────────────────────────────────────────────────────
+function populateAgentFilter() {
+  const agents = [...new Set(allRecordings.map(r => r.agent_name || r._agentFolder))].sort();
+  const sel    = document.getElementById('filter-agent');
+  sel.innerHTML = '<option value="">All Agents</option>' +
+    agents.map(a => `<option value="${a}">${a}</option>`).join('');
+}
+
+function applyFilters() {
+  const search    = document.getElementById('search').value.toLowerCase();
+  const agent     = document.getElementById('filter-agent').value;
+  const type      = document.getElementById('filter-type').value;
+  const dateFrom  = document.getElementById('filter-date-from').value;
+  const dateTo    = document.getElementById('filter-date-to').value;
+
+  filtered = allRecordings.filter(r => {
+    if (agent && (r.agent_name||r._agentFolder) !== agent) return false;
+    if (type  && r.call_type !== type) return false;
+    if (dateFrom && r.date < dateFrom) return false;
+    if (dateTo   && r.date > dateTo)   return false;
+    if (search) {
+      const hay = `${r.caller} ${r.agent_name} ${r.agent_id} ${r.call_type}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    let va = a[sortCol]||'', vb = b[sortCol]||'';
+    return (va > vb ? 1 : va < vb ? -1 : 0) * sortDir;
+  });
+
+  renderTable();
+}
+
+function clearFilters() {
+  document.getElementById('search').value = '';
+  document.getElementById('filter-agent').value = '';
+  document.getElementById('filter-type').value  = '';
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value   = '';
+  applyFilters();
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = -1; }
+  applyFilters();
+}
+
+// ── Table ──────────────────────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  document.getElementById('count-label').textContent = `${filtered.length} recordings`;
+
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    document.getElementById('empty-state').style.display = 'block';
+    return;
+  }
+  document.getElementById('empty-state').style.display = 'none';
+
+  tbody.innerHTML = filtered.map((r,i) => `
+    <tr onclick="openModal(${i})">
+      <td>${r.datetime || r.date+' '+r.time || '—'}</td>
+      <td><span class="agent-tag">${r.agent_name || r._agentFolder}</span></td>
+      <td>${r.caller || '—'}</td>
+      <td><span class="badge badge-${(r.call_type||'').toLowerCase()}">${r.call_type||'—'}</span></td>
+      <td>${r.duration_formatted || fmtDuration(r.duration_seconds) || '—'}</td>
+      <td>${r.file_size_kb ? r.file_size_kb+'KB' : '—'}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="action-btns">
+          <button class="icon-btn" onclick="openModal(${i})" title="Play">▶</button>
+          <a class="icon-btn" href="${davUrl(r._wavPath)}" 
+             onclick="addAuth(this)" download="${r.filename||'recording.wav'}" title="Download">⬇</a>
+          <button class="icon-btn" onclick="copyLink(${i})" title="Copy link">🔗</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function addAuth(el) {
+  // Note: direct download with auth header not possible via anchor, user will be prompted
+}
+
+// ── Modal ──────────────────────────────────────────────────────
+function openModal(i) {
+  const r   = filtered[i];
+  const url = `${NC_URL}/remote.php/dav/files/${NC_USER}${r._wavPath}`;
+
+  document.getElementById('modal-title').textContent = r.filename || 'Recording';
+  document.getElementById('modal-meta').textContent =
+    `${r.agent_name} • ${r.caller} • ${r.datetime} • ${r.call_type} • ${r.duration_formatted||''}`;
+
+  const audio = document.getElementById('audio-player');
+  // Nextcloud supports public streaming with credentials in URL (app token)
+  const authUrl = url.replace('://', `://${encodeURIComponent(NC_USER)}:${encodeURIComponent(NC_PASS)}@`);
+  audio.src = authUrl;
+
+  const dl = document.getElementById('modal-download');
+  dl.href     = authUrl;
+  dl.download = r.filename || 'recording.wav';
+
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(e) {
+  if (e.target.id === 'modal-overlay') closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('show');
+  document.getElementById('audio-player').pause();
+  document.getElementById('audio-player').src = '';
+}
+
+function copyLink(i) {
+  const r   = filtered[i];
+  const url = `${NC_URL}/remote.php/dav/files/${NC_USER}${r._wavPath}`;
+  navigator.clipboard.writeText(url).then(() => alert('Link copied!'));
+}
+
+function copyShareLink() {
+  const src = document.getElementById('audio-player').src;
+  navigator.clipboard.writeText(src).then(() => alert('Link copied!'));
+}
+
+// ── Auto-load saved credentials ────────────────────────────────
+window.onload = () => {
+  const u = localStorage.getItem('nc_url');
+  const n = localStorage.getItem('nc_user');
+  const p = localStorage.getItem('nc_pass');
+  if (u) document.getElementById('nc-url').value  = u;
+  if (n) document.getElementById('nc-user').value = n;
+  if (p) document.getElementById('nc-pass').value = p;
+  if (u && n && p) {
+    NC_URL=u; NC_USER=n; NC_PASS=p; NC_DIR=BASE_PATH;
+    loadAllData();
+  }
+};
+</script>
+</body>
+</html>
