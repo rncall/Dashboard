@@ -332,6 +332,8 @@
 </div>
 
 <script>
+const PROXY = 'https://nc-proxy.mohsin-kuiperz.workers.dev/?url=';
+
 // ── State ──────────────────────────────────────────────────────
 let allRecordings = [];
 let filtered      = [];
@@ -370,7 +372,7 @@ function authHeader() {
 }
 
 async function propfind(path, depth=1) {
-  const r = await fetch(davUrl(path), {
+  const r = await fetch(PROXY + encodeURIComponent(davUrl(path)), {
     method: 'PROPFIND',
     headers: { 'Authorization': authHeader(), 'Depth': String(depth), 'Content-Type': 'application/xml' },
     body: `<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/></d:prop></d:propfind>`
@@ -425,7 +427,7 @@ async function loadAllData() {
                     for (const file of fileItems) {
                       try {
                         const jsonPath = `${NC_DIR}/${year.name}/${month.name}/${day.name}/${agent.name}/${file.name}`;
-                        const r = await fetch(davUrl(jsonPath), { headers:{ 'Authorization': authHeader() } });
+                        const r = await fetch(PROXY + encodeURIComponent(davUrl(jsonPath)), { headers:{ 'Authorization': authHeader() } });
                         if (r.ok) {
                           const meta = await r.json();
                           meta._wavPath = jsonPath.replace('.json', '.wav');
@@ -603,7 +605,7 @@ function openModal(i) {
 
   const audio = document.getElementById('audio-player');
   // Nextcloud supports public streaming with credentials in URL (app token)
-  const authUrl = url.replace('://', `://${encodeURIComponent(NC_USER)}:${encodeURIComponent(NC_PASS)}@`);
+  const authUrl = PROXY + encodeURIComponent(url);
   audio.src = authUrl;
 
   const dl = document.getElementById('modal-download');
