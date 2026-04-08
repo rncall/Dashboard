@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Call Recorder Dashboard</title>
+<title>WA Call Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -23,7 +23,6 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:var(--font-main); min-height:100vh; }
 
-  /* ── Scrollbar ── */
   ::-webkit-scrollbar { width:6px; }
   ::-webkit-scrollbar-track { background:var(--bg); }
   ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
@@ -31,29 +30,55 @@
   /* ── Header ── */
   header {
     display:flex; align-items:center; justify-content:space-between;
-    padding:20px 32px; border-bottom:1px solid var(--border);
+    padding:16px 32px; border-bottom:1px solid var(--border);
     background:var(--surface);
     position:sticky; top:0; z-index:100;
   }
-  .logo { display:flex; align-items:center; gap:12px; }
+  .logo { display:flex; align-items:center; gap:14px; }
+  .logo-img { width:38px; height:38px; border-radius:8px; object-fit:contain; background:rgba(0,229,255,.08); border:1px solid rgba(0,229,255,.2); padding:4px; display:flex; align-items:center; justify-content:center; }
+  .logo-svg { width:28px; height:28px; }
   .logo-dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-  .logo h1 { font-size:18px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
+  .logo h1 { font-size:17px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
   .logo span { color:var(--accent); }
+  .logo-sub { font-family:var(--font-mono); font-size:9px; color:var(--muted); letter-spacing:1px; margin-top:1px; }
 
   #status-bar { font-family:var(--font-mono); font-size:11px; color:var(--muted); }
   #status-bar.loading { color:var(--yellow); }
   #status-bar.error   { color:var(--red); }
   #status-bar.ok      { color:var(--green); }
 
-  /* ── Config Panel ── */
-  #config-panel {
-    background:linear-gradient(135deg, #0f1a2e, #1a0f2e);
-    border:1px solid var(--accent2);
-    border-radius:12px; padding:28px; margin:24px 32px;
+  /* ── Header right ── */
+  .header-right { display:flex; align-items:center; gap:14px; }
+  .settings-btn {
+    background:var(--border); border:none; color:var(--muted); width:34px; height:34px;
+    border-radius:8px; cursor:pointer; font-size:16px; display:flex;
+    align-items:center; justify-content:center; transition:all .15s;
   }
-  #config-panel h2 { font-size:14px; letter-spacing:2px; color:var(--accent); margin-bottom:20px; text-transform:uppercase; }
-  .config-grid { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end; }
+  .settings-btn:hover { background:var(--accent); color:#000; }
+
+  /* ── Settings Modal ── */
+  #settings-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.75); z-index:2000;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(6px);
+  }
+  #settings-overlay.show { display:flex; }
+  #settings-modal {
+    background:var(--surface); border:1px solid var(--accent2);
+    border-radius:16px; padding:32px; width:520px; max-width:92vw;
+    position:relative;
+  }
+  #settings-modal h3 { font-size:13px; letter-spacing:2px; color:var(--accent); text-transform:uppercase; margin-bottom:6px; }
+  #settings-modal .settings-sub { font-family:var(--font-mono); font-size:11px; color:var(--muted); margin-bottom:24px; }
+  .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+  .settings-full { grid-column:1/-1; }
+  .settings-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .connected-badge { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); color:var(--green); padding:6px 14px; border-radius:8px; font-family:var(--font-mono); font-size:12px; }
+  .connected-user-text { font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+
+  /* ── Field / Button shared ── */
   .field label { display:block; font-size:11px; color:var(--muted); margin-bottom:6px; letter-spacing:1px; text-transform:uppercase; font-family:var(--font-mono); }
   .field input {
     width:100%; background:#0a0e17; border:1px solid var(--border);
@@ -69,7 +94,11 @@
   }
   .btn-primary { background:var(--accent); color:#000; }
   .btn-primary:hover { background:#33eeff; box-shadow:0 0 20px rgba(0,229,255,.3); }
+  .btn-danger { background:transparent; color:var(--red); border:1px solid rgba(239,68,68,.4); }
+  .btn-danger:hover { background:rgba(239,68,68,.15); }
   .btn-sm { padding:6px 14px; font-size:11px; }
+  .btn-export { background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); }
+  .btn-export:hover { background:rgba(34,197,94,.3); }
 
   /* ── Stats ── */
   .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding:0 32px 24px; }
@@ -92,6 +121,28 @@
   .stat-card.purple .stat-value { color:#a78bfa; }
   .stat-card.yellow .stat-value { color:var(--yellow); }
 
+  /* ── Agent Summary ── */
+  .agent-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; padding:0 32px 24px; }
+  .agent-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:16px; transition:all .2s;
+    cursor:pointer; position:relative;
+  }
+  .agent-card:hover { border-color:var(--accent); box-shadow:0 0 20px rgba(0,229,255,.08); }
+  .agent-card.active { border-color:var(--accent); background:rgba(0,229,255,.06); }
+  .agent-card.active::after { content:'✓ FILTERING'; position:absolute; top:8px; right:8px; font-size:9px; font-family:var(--font-mono); color:var(--accent); letter-spacing:1px; }
+  .agent-name { font-weight:600; font-size:13px; margin-bottom:8px; color:var(--accent); }
+  .agent-stats { font-family:var(--font-mono); font-size:11px; color:var(--muted); line-height:1.8; }
+
+  /* ── Section title ── */
+  .section-title {
+    padding:0 32px 12px;
+    font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--muted); font-family:var(--font-mono);
+    border-bottom:1px solid var(--border); margin-bottom:16px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
   /* ── Filters ── */
   .filters {
     display:flex; gap:12px; align-items:center;
@@ -103,11 +154,13 @@
     padding:8px 14px; border-radius:8px; font-family:var(--font-mono);
     font-size:12px; cursor:pointer; outline:none;
   }
+  select:focus { border-color:var(--accent); }
   input[type=date] {
     background:var(--surface); border:1px solid var(--border); color:var(--text);
     padding:8px 14px; border-radius:8px; font-family:var(--font-mono);
     font-size:12px; outline:none;
   }
+  input[type=date]:focus { border-color:var(--accent); }
   .filter-clear { color:var(--muted); font-size:12px; cursor:pointer; text-decoration:underline; font-family:var(--font-mono); }
   .filter-clear:hover { color:var(--text); }
   .search-box {
@@ -120,10 +173,11 @@
   /* ── Table ── */
   .table-wrap { padding:0 32px 32px; }
   .table-header {
-    display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;
   }
   .table-header h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-family:var(--font-mono); }
   #count-label { font-size:12px; color:var(--muted); font-family:var(--font-mono); }
+  .table-actions { display:flex; gap:8px; align-items:center; }
 
   table { width:100%; border-collapse:collapse; }
   thead th {
@@ -139,7 +193,7 @@
     cursor:pointer;
   }
   tbody tr:hover { background:rgba(0,229,255,.04); }
-  tbody td { padding:12px 14px; font-size:13px; font-family:var(--font-mono); vertical-align:middle; }
+  tbody td { padding:11px 14px; font-size:13px; font-family:var(--font-mono); vertical-align:middle; }
   .badge {
     display:inline-block; padding:3px 10px; border-radius:20px;
     font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
@@ -161,6 +215,25 @@
   .icon-btn:hover { background:var(--accent); color:#000; }
   .icon-btn.red:hover { background:var(--red); }
 
+  /* ── Pagination ── */
+  .pagination-wrap {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:20px; flex-wrap:wrap; gap:12px;
+  }
+  .pagination-info { font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+  .pagination-controls { display:flex; align-items:center; gap:6px; }
+  .page-btn {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    width:32px; height:32px; border-radius:6px; cursor:pointer;
+    font-family:var(--font-mono); font-size:12px; display:flex;
+    align-items:center; justify-content:center; transition:all .15s;
+  }
+  .page-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  .page-btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
+  .page-btn:disabled { opacity:0.3; cursor:not-allowed; }
+  .page-btn.page-num { min-width:32px; padding:0 6px; }
+  .rows-select-wrap { display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; color:var(--muted); }
+
   /* ── Empty / Loading ── */
   .empty-state {
     text-align:center; padding:60px 20px; color:var(--muted);
@@ -171,19 +244,48 @@
   /* ── Audio Player Modal ── */
   #modal-overlay {
     display:none; position:fixed; inset:0;
-    background:rgba(0,0,0,.7); z-index:1000;
+    background:rgba(0,0,0,.75); z-index:1000;
     align-items:center; justify-content:center;
-    backdrop-filter:blur(4px);
+    backdrop-filter:blur(6px);
   }
   #modal-overlay.show { display:flex; }
   #modal {
     background:var(--surface); border:1px solid var(--border);
-    border-radius:16px; padding:32px; width:520px; max-width:90vw;
+    border-radius:16px; padding:32px; width:560px; max-width:90vw;
     position:relative;
   }
-  #modal h3 { font-size:14px; letter-spacing:1px; margin-bottom:6px; }
-  #modal .meta { font-size:11px; color:var(--muted); font-family:var(--font-mono); margin-bottom:20px; }
-  audio { width:100%; margin-bottom:16px; accent-color:var(--accent); }
+  #modal h3 { font-size:14px; letter-spacing:1px; margin-bottom:6px; word-break:break-all; }
+  #modal .meta { font-size:11px; color:var(--muted); font-family:var(--font-mono); margin-bottom:20px; line-height:1.6; }
+  
+  /* Custom audio player */
+  .audio-wrap { margin-bottom:16px; }
+  #audio-player { display:none; }
+  .custom-player {
+    background:#0a0e17; border:1px solid var(--border); border-radius:10px;
+    padding:16px; display:flex; flex-direction:column; gap:12px;
+  }
+  .player-row { display:flex; align-items:center; gap:12px; }
+  .play-btn {
+    width:40px; height:40px; border-radius:50%; background:var(--accent); border:none;
+    color:#000; font-size:16px; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; flex-shrink:0; transition:all .15s;
+  }
+  .play-btn:hover { background:#33eeff; box-shadow:0 0 16px rgba(0,229,255,.4); }
+  .progress-wrap { flex:1; position:relative; height:6px; background:var(--border); border-radius:3px; cursor:pointer; }
+  .progress-fill { height:100%; background:var(--accent); border-radius:3px; width:0%; transition:width .1s; pointer-events:none; }
+  .progress-thumb {
+    position:absolute; top:50%; right:0; transform:translate(50%,-50%);
+    width:14px; height:14px; background:var(--accent); border-radius:50%;
+    box-shadow:0 0 8px rgba(0,229,255,.5); display:none;
+  }
+  .progress-wrap:hover .progress-thumb { display:block; }
+  .time-label { font-family:var(--font-mono); font-size:11px; color:var(--muted); white-space:nowrap; }
+  .volume-row { display:flex; align-items:center; gap:8px; }
+  .vol-icon { font-size:13px; cursor:pointer; }
+  .vol-slider { -webkit-appearance:none; width:80px; height:4px; background:var(--border); border-radius:2px; outline:none; cursor:pointer; }
+  .vol-slider::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; background:var(--accent); border-radius:50%; cursor:pointer; }
+  .player-loading { font-family:var(--font-mono); font-size:11px; color:var(--yellow); }
+
   .modal-actions { display:flex; gap:10px; flex-wrap:wrap; }
   .modal-close {
     position:absolute; top:16px; right:16px;
@@ -193,28 +295,56 @@
   }
   .modal-close:hover { background:var(--red); }
 
-  /* ── Agent Summary ── */
-  .agent-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; padding:0 32px 24px; }
-  .agent-card {
+  /* ── Analytics ── */
+  .analytics-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:0 32px 24px; }
+  .chart-card {
     background:var(--surface); border:1px solid var(--border);
-    border-radius:10px; padding:16px; transition:border-color .2s;
+    border-radius:12px; padding:20px; position:relative; overflow:hidden;
   }
-  .agent-card:hover { border-color:var(--accent); }
-  .agent-name { font-weight:600; font-size:14px; margin-bottom:8px; color:var(--accent); }
-  .agent-stats { font-family:var(--font-mono); font-size:11px; color:var(--muted); line-height:1.8; }
+  .chart-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, var(--accent2), var(--accent));
+  }
+  .chart-title { font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); font-family:var(--font-mono); margin-bottom:16px; }
+  .bar-chart { display:flex; align-items:flex-end; gap:6px; height:100px; }
+  .bar-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .bar-fill { width:100%; border-radius:3px 3px 0 0; min-height:4px; transition:height .3s; position:relative; }
+  .bar-fill:hover::after { content:attr(data-val); position:absolute; top:-20px; left:50%; transform:translateX(-50%); background:var(--border); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:10px; white-space:nowrap; }
+  .bar-label { font-family:var(--font-mono); font-size:9px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; }
+  .donut-wrap { display:flex; align-items:center; gap:20px; }
+  .donut-legend { display:flex; flex-direction:column; gap:8px; }
+  .legend-item { display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; color:var(--text); }
+  .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .hourly-chart { display:flex; align-items:flex-end; gap:3px; height:80px; }
+  .h-bar { flex:1; border-radius:2px 2px 0 0; min-height:2px; background:rgba(0,229,255,.5); transition:background .15s; cursor:default; position:relative; }
+  .h-bar:hover { background:var(--accent); }
+  .h-bar:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); padding:3px 8px; border-radius:4px; font-family:var(--font-mono); font-size:10px; white-space:nowrap; z-index:10; }
+  .hourly-labels { display:flex; gap:3px; margin-top:4px; }
+  .h-label { flex:1; font-family:var(--font-mono); font-size:8px; color:var(--muted); text-align:center; }
 
-  /* ── Section title ── */
-  .section-title {
-    padding:0 32px 12px;
-    font-size:11px; letter-spacing:2px; text-transform:uppercase;
-    color:var(--muted); font-family:var(--font-mono);
-    border-bottom:1px solid var(--border); margin-bottom:16px;
+  /* ── Export Modal ── */
+  #export-modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.75); z-index:1000;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(6px);
   }
+  #export-modal-overlay.show { display:flex; }
+  #export-modal {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; padding:32px; width:480px; max-width:90vw;
+    position:relative;
+  }
+  #export-modal h3 { font-size:14px; letter-spacing:1px; margin-bottom:20px; color:var(--accent); }
+  .export-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+  .export-full { grid-column:1/-1; }
 
   @media(max-width:768px) {
-    .config-grid { grid-template-columns:1fr; }
+    .settings-grid { grid-template-columns:1fr; }
     .stats-grid  { grid-template-columns:repeat(2,1fr); }
-    header, .stats-grid, .filters, .table-wrap, .agent-grid, .section-title { padding-left:16px; padding-right:16px; }
+    .analytics-grid { grid-template-columns:1fr; }
+    header, .stats-grid, .filters, .table-wrap, .agent-grid, .section-title, .analytics-grid { padding-left:16px; padding-right:16px; }
+    header { padding:12px 16px; }
   }
 </style>
 </head>
@@ -222,29 +352,64 @@
 
 <header>
   <div class="logo">
-    <div class="logo-dot"></div>
-    <h1>WA Call <span>Dashboard</span></h1>
+    <div class="logo-img">
+      <!-- SVG Phone/Recording Logo -->
+      <svg class="logo-svg" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="28" height="28" rx="6" fill="rgba(0,229,255,0.08)"/>
+        <path d="M8 9.5C8 9 8.5 8 10 8C10.5 8 11.5 8.5 12 9.5L13 11.5C13.3 12.1 13.1 12.9 12.6 13.4L11.8 14.2C12.5 15.5 13.5 16.5 14.8 17.2L15.6 16.4C16.1 15.9 16.9 15.7 17.5 16L19.5 17C20.5 17.5 21 18.5 21 19C21 20.5 20 21 19.5 21C14 21 7 14 7 8.5C7 8 7.5 8 8 9.5Z" fill="var(--accent)" opacity="0.9"/>
+        <circle cx="20" cy="9" r="3.5" fill="var(--red)" opacity="0.9"/>
+        <circle cx="20" cy="9" r="2" fill="var(--red)">
+          <animate attributeName="r" values="2;3;2" dur="1.5s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+    </div>
+    <div>
+      <h1>WA Call <span>Dashboard</span></h1>
+      <div class="logo-sub">CALL RECORDING MONITOR</div>
+    </div>
   </div>
-  <div id="status-bar">NOT CONNECTED</div>
+  <div class="header-right">
+    <div id="status-bar">NOT CONNECTED</div>
+    <button class="settings-btn" onclick="openSettings()" title="Connection Settings">⚙</button>
+  </div>
 </header>
 
-<!-- Config -->
-<div id="config-panel">
-  <h2>⚙ Nextcloud Connection</h2>
-  <div class="config-grid">
-    <div class="field">
-      <label>Server URL</label>
-      <input id="nc-url" type="text" placeholder="https://cloud.kuiperz.com" value="https://cloud.kuiperz.com">
+<!-- Settings Modal -->
+<div id="settings-overlay" onclick="closeSettingsOverlay(event)">
+  <div id="settings-modal">
+    <button class="modal-close" onclick="closeSettings()">✕</button>
+    <h3>⚙ Nextcloud Connection</h3>
+    <p class="settings-sub">Credentials are saved in your browser. Set once — auto-connects on every visit.</p>
+    <div id="settings-form">
+      <div class="settings-grid">
+        <div class="field settings-full">
+          <label>Server URL</label>
+          <input id="nc-url" type="text" placeholder="https://cloud.example.com">
+        </div>
+        <div class="field">
+          <label>Username</label>
+          <input id="nc-user" type="text" placeholder="username">
+        </div>
+        <div class="field">
+          <label>Password / App Token</label>
+          <input id="nc-pass" type="password" placeholder="password or app token">
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn-primary" onclick="connect()">CONNECT & SAVE</button>
+      </div>
     </div>
-    <div class="field">
-      <label>Username</label>
-      <input id="nc-user" type="text" placeholder="username">
+    <div id="settings-connected" style="display:none">
+      <div class="settings-actions">
+        <span class="connected-badge">✓ Connected</span>
+        <span class="connected-user-text" id="connected-user"></span>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-sm btn-primary" onclick="closeSettings();loadAllData()">↻ Refresh Data</button>
+        <button class="btn btn-sm btn-danger" onclick="disconnect()">Disconnect</button>
+      </div>
     </div>
-    <div class="field">
-      <label>Password / App Token</label>
-      <input id="nc-pass" type="password" placeholder="password">
-    </div>
-    <button class="btn btn-primary" onclick="connect()">CONNECT</button>
   </div>
 </div>
 
@@ -272,8 +437,43 @@
   </div>
 </div>
 
+<!-- Analytics -->
+<div class="section-title" style="padding:0 32px 12px;margin-bottom:16px;">
+  <span>Analytics</span>
+</div>
+<div class="analytics-grid">
+  <div class="chart-card">
+    <div class="chart-title">Calls by Agent</div>
+    <div class="bar-chart" id="agent-bar-chart"></div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Incoming vs Outgoing</div>
+    <div class="donut-wrap">
+      <svg width="90" height="90" viewBox="0 0 90 90" id="donut-svg">
+        <circle cx="45" cy="45" r="35" fill="none" stroke="var(--border)" stroke-width="14"/>
+        <circle cx="45" cy="45" r="35" fill="none" stroke="var(--green)" stroke-width="14"
+          stroke-dasharray="0 220" stroke-dashoffset="55" id="donut-in" style="transform-origin:center;transform:rotate(-90deg)" stroke-linecap="round"/>
+        <circle cx="45" cy="45" r="35" fill="none" stroke="#a78bfa" stroke-width="14"
+          stroke-dasharray="0 220" stroke-dashoffset="55" id="donut-out" style="transform-origin:center;transform:rotate(-90deg)" stroke-linecap="round"/>
+      </svg>
+      <div class="donut-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><span id="legend-in">Incoming: —</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div><span id="legend-out">Outgoing: —</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="chart-card" style="grid-column:1/-1">
+    <div class="chart-title">Calls by Hour of Day</div>
+    <div class="hourly-chart" id="hourly-chart"></div>
+    <div class="hourly-labels" id="hourly-labels"></div>
+  </div>
+</div>
+
 <!-- Agent summary -->
-<div class="section-title">Agent Summary</div>
+<div class="section-title">
+  <span>Agent Summary <span style="color:var(--accent);font-size:10px;margin-left:8px;" id="agent-filter-hint"></span></span>
+  <span style="font-size:10px;color:var(--muted);">Click to filter table</span>
+</div>
 <div class="agent-grid" id="agent-grid"></div>
 
 <!-- Filters -->
@@ -295,7 +495,10 @@
 <div class="table-wrap">
   <div class="table-header">
     <h2>Recordings</h2>
-    <span id="count-label">—</span>
+    <div class="table-actions">
+      <span id="count-label" style="font-size:12px;color:var(--muted);font-family:var(--font-mono);">—</span>
+      <button class="btn btn-sm btn-export" onclick="openExportModal()">⬇ Export Excel</button>
+    </div>
   </div>
   <table>
     <thead>
@@ -315,6 +518,24 @@
     <div class="icon">📭</div>
     <p>No recordings found. Connect to Nextcloud or adjust filters.</p>
   </div>
+
+  <!-- Pagination -->
+  <div class="pagination-wrap" id="pagination-wrap">
+    <div class="rows-select-wrap">
+      <span>Rows per page:</span>
+      <select id="rows-per-page" onchange="changeRowsPerPage()" style="padding:4px 10px;font-size:11px;">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="30">30</option>
+        <option value="40">40</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="all">All</option>
+      </select>
+    </div>
+    <div class="pagination-info" id="pagination-info"></div>
+    <div class="pagination-controls" id="pagination-controls"></div>
+  </div>
 </div>
 
 <!-- Audio Modal -->
@@ -323,10 +544,66 @@
     <button class="modal-close" onclick="closeModalDirect()">✕</button>
     <h3 id="modal-title">—</h3>
     <div class="meta" id="modal-meta">—</div>
-    <audio id="audio-player" controls></audio>
+    <div class="audio-wrap">
+      <audio id="audio-player"></audio>
+      <div class="custom-player" id="custom-player">
+        <div class="player-row">
+          <button class="play-btn" id="play-btn" onclick="togglePlay()">▶</button>
+          <div class="progress-wrap" id="progress-wrap" onclick="seekAudio(event)">
+            <div class="progress-fill" id="progress-fill"></div>
+            <div class="progress-thumb" id="progress-thumb"></div>
+          </div>
+          <span class="time-label" id="time-label">0:00 / 0:00</span>
+        </div>
+        <div class="volume-row">
+          <span class="vol-icon" onclick="toggleMute()">🔊</span>
+          <input type="range" class="vol-slider" id="vol-slider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
+          <span class="player-loading" id="player-loading" style="display:none">Loading audio...</span>
+        </div>
+      </div>
+    </div>
     <div class="modal-actions">
       <a id="modal-download" class="btn btn-primary btn-sm" download>⬇ Download</a>
       <button class="btn btn-sm" style="background:var(--surface);border:1px solid var(--border);" onclick="copyShareLink()">🔗 Copy Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div id="export-modal-overlay" onclick="closeExportModal(event)">
+  <div id="export-modal">
+    <button class="modal-close" onclick="closeExportModalDirect()">✕</button>
+    <h3>⬇ Export to Excel</h3>
+    <div class="export-grid">
+      <div class="field">
+        <label>Agent (optional)</label>
+        <select id="export-agent" style="width:100%">
+          <option value="">All Agents</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Type (optional)</label>
+        <select id="export-type" style="width:100%">
+          <option value="">All Types</option>
+          <option value="Incoming">Incoming</option>
+          <option value="Outgoing">Outgoing</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Date From</label>
+        <input type="date" id="export-date-from" style="width:100%">
+      </div>
+      <div class="field">
+        <label>Date To</label>
+        <input type="date" id="export-date-to" style="width:100%">
+      </div>
+      <div class="export-full">
+        <span id="export-count" style="font-family:var(--font-mono);font-size:12px;color:var(--muted);"></span>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" onclick="doExport()">⬇ Export CSV</button>
+      <button class="btn" style="background:var(--surface);border:1px solid var(--border);" onclick="closeExportModalDirect()">Cancel</button>
     </div>
   </div>
 </div>
@@ -340,7 +617,67 @@ let filtered      = [];
 let sortCol       = 'datetime';
 let sortDir       = -1;
 let NC_URL='', NC_USER='', NC_PASS='', NC_DIR='';
+let currentPage   = 1;
+let rowsPerPage   = 20;
+let activeAgentFilter = '';
 const BASE_PATH   = '/Customer Support/Call Recordings/WhatsApp Call';
+
+// ── Audio player state ─────────────────────────────────────────
+const audioEl = document.getElementById('audio-player');
+audioEl.addEventListener('timeupdate', updateProgress);
+audioEl.addEventListener('loadedmetadata', () => {
+  document.getElementById('player-loading').style.display = 'none';
+  updateProgress();
+});
+audioEl.addEventListener('waiting', () => { document.getElementById('player-loading').style.display = 'block'; });
+audioEl.addEventListener('canplay', () => { document.getElementById('player-loading').style.display = 'none'; });
+audioEl.addEventListener('ended', () => { document.getElementById('play-btn').textContent = '▶'; });
+
+function togglePlay() {
+  if (audioEl.paused) { audioEl.play(); document.getElementById('play-btn').textContent = '⏸'; }
+  else { audioEl.pause(); document.getElementById('play-btn').textContent = '▶'; }
+}
+function updateProgress() {
+  if (!audioEl.duration) return;
+  const pct = (audioEl.currentTime / audioEl.duration) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-thumb').style.left = pct + '%';
+  document.getElementById('time-label').textContent = fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
+}
+function seekAudio(e) {
+  const rect = document.getElementById('progress-wrap').getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  audioEl.currentTime = pct * audioEl.duration;
+}
+function setVolume(v) { audioEl.volume = v; }
+let wasMuted = false;
+function toggleMute() {
+  audioEl.muted = !audioEl.muted;
+  document.querySelector('.vol-icon').textContent = audioEl.muted ? '🔇' : '🔊';
+}
+function fmtTime(sec) {
+  if (!sec || isNaN(sec)) return '0:00';
+  const m = Math.floor(sec/60), s = Math.floor(sec%60);
+  return m + ':' + String(s).padStart(2,'0');
+}
+
+// ── Settings Modal ─────────────────────────────────────────────
+function openSettings() {
+  const isConnected = !!NC_URL;
+  document.getElementById('settings-form').style.display = isConnected ? 'none' : '';
+  document.getElementById('settings-connected').style.display = isConnected ? '' : 'none';
+  if (isConnected) {
+    document.getElementById('connected-user').textContent =
+      `${NC_USER} @ ${NC_URL.replace('https://','').replace('http://','')}`;
+  }
+  document.getElementById('settings-overlay').classList.add('show');
+}
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('show');
+}
+function closeSettingsOverlay(e) {
+  if (e.target.id === 'settings-overlay') closeSettings();
+}
 
 // ── Connect ────────────────────────────────────────────────────
 async function connect() {
@@ -349,12 +686,30 @@ async function connect() {
   NC_PASS = document.getElementById('nc-pass').value.trim();
   NC_DIR  = BASE_PATH;
 
+  if (!NC_URL || !NC_USER || !NC_PASS) { alert('Please fill all fields.'); return; }
+
   setStatus('Connecting...', 'loading');
   localStorage.setItem('nc_url',  NC_URL);
   localStorage.setItem('nc_user', NC_USER);
   localStorage.setItem('nc_pass', NC_PASS);
 
+  closeSettings();
   await loadAllData();
+}
+
+function disconnect() {
+  localStorage.removeItem('nc_url');
+  localStorage.removeItem('nc_user');
+  localStorage.removeItem('nc_pass');
+  localStorage.removeItem(CACHE_KEY);
+  localStorage.removeItem(CACHE_TS);
+  NC_URL = NC_USER = NC_PASS = '';
+  allRecordings = []; filtered = [];
+  renderTable(); updateStats(); updateAgentGrid(); updateCharts();
+  setStatus('NOT CONNECTED', '');
+  closeSettings();
+  // Re-open settings so user can re-enter credentials
+  setTimeout(openSettings, 200);
 }
 
 function setStatus(msg, type='') {
@@ -364,24 +719,20 @@ function setStatus(msg, type='') {
 }
 
 // ── WebDAV helpers ─────────────────────────────────────────────
-function davUrl(path) {
-  return `${NC_URL}/remote.php/dav/files/${NC_USER}${path}`;
-}
-function authHeader() {
-  return 'Basic ' + btoa(`${NC_USER}:${NC_PASS}`);
-}
+function davUrl(path) { return `${NC_URL}/remote.php/dav/files/${NC_USER}${path}`; }
+function authHeader() { return 'Basic ' + btoa(`${NC_USER}:${NC_PASS}`); }
 
 async function propfind(path, depth=1) {
   const r = await fetch(PROXY + encodeURIComponent(davUrl(path)), {
     method: 'PROPFIND',
     headers: { 'Authorization': authHeader(), 'Depth': String(depth), 'Content-Type': 'application/xml' },
-    body: `<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/></d:prop></d:propfind>`
+    body: `<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/></d:prop></d:propfind>`
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.text();
 }
 
-function parseEntries(xml, parentPath) {
+function parseEntries(xml) {
   const parser = new DOMParser();
   const doc    = parser.parseFromString(xml, 'application/xml');
   const responses = [...doc.querySelectorAll('response')];
@@ -389,70 +740,118 @@ function parseEntries(xml, parentPath) {
     const href  = decodeURIComponent(el.querySelector('href').textContent);
     const name  = href.split('/').filter(Boolean).pop();
     const ctype = el.querySelector('getcontenttype')?.textContent || '';
-    return { href, name, isDir: !ctype || ctype.includes('directory') || ctype === '', ctype };
+    const size  = parseInt(el.querySelector('getcontentlength')?.textContent || '0');
+    return { href, name, isDir: !ctype || ctype.includes('directory') || ctype === '', ctype, size };
   });
 }
 
-// ── Load all JSON metadata ─────────────────────────────────────
+// ── Load all JSON metadata (with caching) ──────────────────────
+const CACHE_KEY = 'wc_recordings_cache';
+const CACHE_TS  = 'wc_recordings_ts';
+const CACHE_TTL = 5 * 60 * 1000; // 5 min cache
+
 async function loadAllData() {
   setStatus('Scanning folders...', 'loading');
   allRecordings = [];
 
+  // Try cache
+  const ts = parseInt(localStorage.getItem(CACHE_TS) || '0');
+  if (Date.now() - ts < CACHE_TTL) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
+      if (cached.length) {
+        allRecordings = cached;
+        finishLoad();
+        setStatus(`✓ Connected (cached) — ${allRecordings.length} recordings`, 'ok');
+        return;
+      }
+    } catch(e) {}
+  }
+
   try {
-    // year folders
     const yearXml   = await propfind(NC_DIR, 1);
-    const yearItems = parseEntries(yearXml, NC_DIR).filter(e => e.isDir);
+    const yearItems = parseEntries(yearXml).filter(e => e.isDir);
 
+    // Parallel: load months in parallel per year
+    const allPromises = [];
     for (const year of yearItems) {
-      const yearPath  = `/${NC_DIR}/${year.name}`.replace('//', '/');
-      try {
-        const monthXml   = await propfind(`${NC_DIR}/${year.name}`, 1);
-        const monthItems = parseEntries(monthXml).filter(e => e.isDir);
-
-        for (const month of monthItems) {
-          try {
-            const dayXml   = await propfind(`${NC_DIR}/${year.name}/${month.name}`, 1);
-            const dayItems = parseEntries(dayXml).filter(e => e.isDir);
-
-            for (const day of dayItems) {
-              try {
-                const agentXml   = await propfind(`${NC_DIR}/${year.name}/${month.name}/${day.name}`, 1);
-                const agentItems = parseEntries(agentXml).filter(e => e.isDir);
-
-                for (const agent of agentItems) {
-                  try {
-                    const fileXml   = await propfind(`${NC_DIR}/${year.name}/${month.name}/${day.name}/${agent.name}`, 1);
-                    const fileItems = parseEntries(fileXml).filter(e => !e.isDir && e.name.endsWith('.json'));
-
-                    for (const file of fileItems) {
-                      try {
-                        const jsonPath = `${NC_DIR}/${year.name}/${month.name}/${day.name}/${agent.name}/${file.name}`;
-                        const r = await fetch(PROXY + encodeURIComponent(davUrl(jsonPath)), { headers:{ 'Authorization': authHeader() } });
-                        if (r.ok) {
-                          const meta = await r.json();
-                          meta._wavPath = jsonPath.replace('.json', '.wav');
-                          meta._agentFolder = agent.name;
-                          allRecordings.push(meta);
-                        }
-                      } catch(e) {}
-                    }
-                  } catch(e) {}
-                }
-              } catch(e) {}
-            }
-          } catch(e) {}
-        }
-      } catch(e) {}
+      allPromises.push(loadYear(year.name));
     }
+    const results = await Promise.allSettled(allPromises);
+    results.forEach(r => { if (r.status === 'fulfilled') allRecordings.push(...r.value); });
 
+    // Cache
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(allRecordings));
+      localStorage.setItem(CACHE_TS, String(Date.now()));
+    } catch(e) {}
+
+    finishLoad();
     setStatus(`✓ Connected — ${allRecordings.length} recordings loaded`, 'ok');
-    updateStats();
-    updateAgentGrid();
-    populateAgentFilter();
-    applyFilters();
+
   } catch(err) {
     setStatus(`✗ Error: ${err.message}`, 'error');
   }
+}
+
+async function loadYear(yearName) {
+  const recs = [];
+  const monthXml   = await propfind(`${NC_DIR}/${yearName}`, 1);
+  const monthItems = parseEntries(monthXml).filter(e => e.isDir);
+  const monthProms = monthItems.map(m => loadMonth(yearName, m.name));
+  const results = await Promise.allSettled(monthProms);
+  results.forEach(r => { if (r.status === 'fulfilled') recs.push(...r.value); });
+  return recs;
+}
+
+async function loadMonth(yearName, monthName) {
+  const recs = [];
+  const dayXml   = await propfind(`${NC_DIR}/${yearName}/${monthName}`, 1);
+  const dayItems = parseEntries(dayXml).filter(e => e.isDir);
+  const dayProms = dayItems.map(d => loadDay(yearName, monthName, d.name));
+  const results = await Promise.allSettled(dayProms);
+  results.forEach(r => { if (r.status === 'fulfilled') recs.push(...r.value); });
+  return recs;
+}
+
+async function loadDay(yearName, monthName, dayName) {
+  const recs = [];
+  const agentXml   = await propfind(`${NC_DIR}/${yearName}/${monthName}/${dayName}`, 1);
+  const agentItems = parseEntries(agentXml).filter(e => e.isDir);
+  const agentProms = agentItems.map(a => loadAgent(yearName, monthName, dayName, a.name));
+  const results = await Promise.allSettled(agentProms);
+  results.forEach(r => { if (r.status === 'fulfilled') recs.push(...r.value); });
+  return recs;
+}
+
+async function loadAgent(yearName, monthName, dayName, agentName) {
+  const recs = [];
+  const path = `${NC_DIR}/${yearName}/${monthName}/${dayName}/${agentName}`;
+  const fileXml   = await propfind(path, 1);
+  const fileItems = parseEntries(fileXml).filter(e => !e.isDir && e.name.endsWith('.json'));
+  const fileProms = fileItems.map(f => loadFile(path, f.name, agentName, f.size));
+  const results = await Promise.allSettled(fileProms);
+  results.forEach(r => { if (r.status === 'fulfilled' && r.value) recs.push(r.value); });
+  return recs;
+}
+
+async function loadFile(dirPath, fileName, agentName, wavSize) {
+  const jsonPath = `${dirPath}/${fileName}`;
+  const r = await fetch(PROXY + encodeURIComponent(davUrl(jsonPath)), { headers:{ 'Authorization': authHeader() } });
+  if (!r.ok) return null;
+  const meta = await r.json();
+  meta._wavPath     = jsonPath.replace('.json', '.wav');
+  meta._agentFolder = agentName;
+  if (!meta.file_size_kb && wavSize) meta.file_size_kb = Math.round(wavSize/1024);
+  return meta;
+}
+
+function finishLoad() {
+  updateStats();
+  updateAgentGrid();
+  updateCharts();
+  populateAgentFilter();
+  applyFilters();
 }
 
 // ── Stats ──────────────────────────────────────────────────────
@@ -483,11 +882,61 @@ function fmtDuration(sec) {
   return `${s}s`;
 }
 
+// ── Charts ─────────────────────────────────────────────────────
+function updateCharts() {
+  const data = allRecordings;
+  if (!data.length) return;
+
+  // Agent bar chart
+  const agentMap = {};
+  data.forEach(r => {
+    const n = r.agent_name || r._agentFolder || 'Unknown';
+    agentMap[n] = (agentMap[n] || 0) + 1;
+  });
+  const sorted = Object.entries(agentMap).sort((a,b) => b[1]-a[1]).slice(0,8);
+  const maxVal = Math.max(...sorted.map(x=>x[1]));
+  document.getElementById('agent-bar-chart').innerHTML = sorted.map(([name, count]) => `
+    <div class="bar-item">
+      <div class="bar-fill" style="height:${Math.max(8, Math.round((count/maxVal)*90))}px;background:linear-gradient(180deg,var(--accent),var(--accent2));" data-val="${count}"></div>
+      <div class="bar-label" title="${name}">${name.split(' ')[0]}</div>
+    </div>
+  `).join('');
+
+  // Donut
+  const inc = data.filter(r => r.call_type === 'Incoming').length;
+  const out = data.filter(r => r.call_type === 'Outgoing').length;
+  const total = inc + out;
+  const circ = 2 * Math.PI * 35;
+  const inPct = total ? (inc/total) : 0;
+  const outPct = total ? (out/total) : 0;
+  const inLen = circ * inPct;
+  const outLen = circ * outPct;
+  document.getElementById('donut-in').setAttribute('stroke-dasharray', `${inLen} ${circ-inLen}`);
+  document.getElementById('donut-out').setAttribute('stroke-dasharray', `${outLen} ${circ-outLen}`);
+  document.getElementById('donut-out').setAttribute('stroke-dashoffset', String(55 - inLen));
+  document.getElementById('legend-in').textContent  = `Incoming: ${inc} (${total ? Math.round(inPct*100) : 0}%)`;
+  document.getElementById('legend-out').textContent = `Outgoing: ${out} (${total ? Math.round(outPct*100) : 0}%)`;
+
+  // Hourly
+  const hours = Array(24).fill(0);
+  data.forEach(r => {
+    const t = r.time || (r.datetime ? r.datetime.split(' ')[1] : '');
+    if (t) { const h = parseInt(t.split(':')[0]); if (!isNaN(h)) hours[h]++; }
+  });
+  const maxH = Math.max(...hours, 1);
+  document.getElementById('hourly-chart').innerHTML = hours.map((c,h) => `
+    <div class="h-bar" style="height:${Math.max(2, Math.round((c/maxH)*75))}px;" data-tip="${h}:00 — ${c} calls"></div>
+  `).join('');
+  document.getElementById('hourly-labels').innerHTML = Array.from({length:24},(_,i) =>
+    `<div class="h-label">${i%4===0?i:''}</div>`
+  ).join('');
+}
+
 // ── Agent Grid ─────────────────────────────────────────────────
 function updateAgentGrid() {
   const agents = {};
   allRecordings.forEach(r => {
-    const n = r.agent_name || r._agentFolder;
+    const n = r.agent_name || r._agentFolder || 'Unknown';
     if (!agents[n]) agents[n] = { calls:0, incoming:0, outgoing:0, totalSec:0 };
     agents[n].calls++;
     if (r.call_type === 'Incoming') agents[n].incoming++;
@@ -496,23 +945,43 @@ function updateAgentGrid() {
   });
 
   const grid = document.getElementById('agent-grid');
-  grid.innerHTML = Object.entries(agents).map(([name, s]) => `
-    <div class="agent-card">
+  grid.innerHTML = Object.entries(agents).sort((a,b) => b[1].calls-a[1].calls).map(([name, s]) => `
+    <div class="agent-card${activeAgentFilter===name?' active':''}" onclick="filterByAgent('${name.replace(/'/g,"\\'")}')">
       <div class="agent-name">👤 ${name}</div>
       <div class="agent-stats">
         Calls: <b style="color:var(--text)">${s.calls}</b><br>
-        Incoming: <b style="color:var(--green)">${s.incoming}</b> &nbsp; Outgoing: <b style="color:#a78bfa">${s.outgoing}</b><br>
+        In: <b style="color:var(--green)">${s.incoming}</b> &nbsp; Out: <b style="color:#a78bfa">${s.outgoing}</b><br>
         Duration: <b style="color:var(--yellow)">${fmtDuration(s.totalSec)}</b>
       </div>
     </div>
   `).join('');
 }
 
+function filterByAgent(name) {
+  if (activeAgentFilter === name) {
+    // toggle off
+    activeAgentFilter = '';
+    document.getElementById('filter-agent').value = '';
+    document.getElementById('agent-filter-hint').textContent = '';
+  } else {
+    activeAgentFilter = name;
+    document.getElementById('filter-agent').value = name;
+    document.getElementById('agent-filter-hint').textContent = `— Filtered: ${name}`;
+  }
+  updateAgentGrid();
+  currentPage = 1;
+  applyFilters();
+}
+
 // ── Filters ────────────────────────────────────────────────────
 function populateAgentFilter() {
   const agents = [...new Set(allRecordings.map(r => r.agent_name || r._agentFolder))].sort();
-  const sel    = document.getElementById('filter-agent');
+  const sel = document.getElementById('filter-agent');
   sel.innerHTML = '<option value="">All Agents</option>' +
+    agents.map(a => `<option value="${a}">${a}</option>`).join('');
+  // Also populate export agent select
+  const expSel = document.getElementById('export-agent');
+  expSel.innerHTML = '<option value="">All Agents</option>' +
     agents.map(a => `<option value="${a}">${a}</option>`).join('');
 }
 
@@ -522,6 +991,13 @@ function applyFilters() {
   const type      = document.getElementById('filter-type').value;
   const dateFrom  = document.getElementById('filter-date-from').value;
   const dateTo    = document.getElementById('filter-date-to').value;
+
+  // Sync activeAgentFilter with select
+  if (agent !== activeAgentFilter) {
+    activeAgentFilter = agent;
+    updateAgentGrid();
+    document.getElementById('agent-filter-hint').textContent = agent ? `— Filtered: ${agent}` : '';
+  }
 
   filtered = allRecordings.filter(r => {
     if (agent && (r.agent_name||r._agentFolder) !== agent) return false;
@@ -537,9 +1013,11 @@ function applyFilters() {
 
   filtered.sort((a,b) => {
     let va = a[sortCol]||'', vb = b[sortCol]||'';
+    if (sortCol === 'duration_seconds' || sortCol === 'file_size_kb') { va=+(va||0); vb=+(vb||0); }
     return (va > vb ? 1 : va < vb ? -1 : 0) * sortDir;
   });
 
+  currentPage = 1;
   renderTable();
 }
 
@@ -549,6 +1027,9 @@ function clearFilters() {
   document.getElementById('filter-type').value  = '';
   document.getElementById('filter-date-from').value = '';
   document.getElementById('filter-date-to').value   = '';
+  activeAgentFilter = '';
+  document.getElementById('agent-filter-hint').textContent = '';
+  updateAgentGrid();
   applyFilters();
 }
 
@@ -558,7 +1039,14 @@ function sortBy(col) {
   applyFilters();
 }
 
-// ── Table ──────────────────────────────────────────────────────
+// ── Table + Pagination ─────────────────────────────────────────
+function changeRowsPerPage() {
+  const val = document.getElementById('rows-per-page').value;
+  rowsPerPage = val === 'all' ? Infinity : parseInt(val);
+  currentPage = 1;
+  renderTable();
+}
+
 function renderTable() {
   const tbody = document.getElementById('table-body');
   document.getElementById('count-label').textContent = `${filtered.length} recordings`;
@@ -566,13 +1054,22 @@ function renderTable() {
   if (!filtered.length) {
     tbody.innerHTML = '';
     document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('pagination-wrap').style.display = 'none';
     return;
   }
   document.getElementById('empty-state').style.display = 'none';
 
-  tbody.innerHTML = filtered.map((r,i) => `
-    <tr onclick="openModal(${i})">
-      <td>${r.datetime || r.date+' '+r.time || '—'}</td>
+  const total = filtered.length;
+  const rpp = rowsPerPage === Infinity ? total : rowsPerPage;
+  const totalPages = Math.ceil(total / rpp);
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * rpp;
+  const end   = Math.min(start + rpp, total);
+  const pageData = filtered.slice(start, end);
+
+  tbody.innerHTML = pageData.map((r, i) => `
+    <tr onclick="openModal(${start + i})">
+      <td>${r.datetime || (r.date+' '+(r.time||'')) || '—'}</td>
       <td><span class="agent-tag">${r.agent_name || r._agentFolder}</span></td>
       <td>${r.caller || '—'}</td>
       <td><span class="badge badge-${(r.call_type||'').toLowerCase()}">${r.call_type||'—'}</span></td>
@@ -580,33 +1077,67 @@ function renderTable() {
       <td>${r.file_size_kb ? r.file_size_kb+'KB' : '—'}</td>
       <td onclick="event.stopPropagation()">
         <div class="action-btns">
-          <button class="icon-btn" onclick="openModal(${i})" title="Play">▶</button>
-          <a class="icon-btn" href="${davUrl(r._wavPath)}" 
-             onclick="addAuth(this)" download="${r.filename||'recording.wav'}" title="Download">⬇</a>
-          <button class="icon-btn" onclick="copyLink(${i})" title="Copy link">🔗</button>
+          <button class="icon-btn" onclick="openModal(${start + i})" title="Play">▶</button>
+          <a class="icon-btn" href="${PROXY + encodeURIComponent(davUrl(r._wavPath))}" download="${r.filename||'recording.wav'}" title="Download">⬇</a>
+          <button class="icon-btn" onclick="copyLink(${start + i})" title="Copy link">🔗</button>
         </div>
       </td>
     </tr>
   `).join('');
+
+  // Pagination controls
+  document.getElementById('pagination-wrap').style.display = total > 0 ? 'flex' : 'none';
+  document.getElementById('pagination-info').textContent =
+    rowsPerPage === Infinity ? `Showing all ${total} records` : `${start+1}–${end} of ${total}`;
+
+  if (rowsPerPage === Infinity) {
+    document.getElementById('pagination-controls').innerHTML = '';
+    return;
+  }
+
+  let btns = '';
+  btns += `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage<=1?'disabled':''}>‹</button>`;
+
+  // Page number buttons
+  let startP = Math.max(1, currentPage - 2);
+  let endP   = Math.min(totalPages, currentPage + 2);
+  if (startP > 1) { btns += `<button class="page-btn page-num" onclick="goPage(1)">1</button>`; if(startP>2) btns += `<span style="color:var(--muted);padding:0 4px;font-size:12px;">…</span>`; }
+  for (let p = startP; p <= endP; p++) {
+    btns += `<button class="page-btn page-num${p===currentPage?' active':''}" onclick="goPage(${p})">${p}</button>`;
+  }
+  if (endP < totalPages) { if(endP<totalPages-1) btns += `<span style="color:var(--muted);padding:0 4px;font-size:12px;">…</span>`; btns += `<button class="page-btn page-num" onclick="goPage(${totalPages})">${totalPages}</button>`; }
+
+  btns += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage>=totalPages?'disabled':''}>›</button>`;
+  document.getElementById('pagination-controls').innerHTML = btns;
 }
 
-function addAuth(el) {
-  // Note: direct download with auth header not possible via anchor, user will be prompted
+function goPage(p) {
+  const rpp = rowsPerPage === Infinity ? filtered.length : rowsPerPage;
+  const total = Math.ceil(filtered.length / rpp);
+  if (p < 1 || p > total) return;
+  currentPage = p;
+  renderTable();
+  window.scrollTo({top: document.querySelector('.table-wrap').offsetTop - 100, behavior:'smooth'});
 }
 
 // ── Modal ──────────────────────────────────────────────────────
 function openModal(i) {
   const r   = filtered[i];
   const url = `${NC_URL}/remote.php/dav/files/${NC_USER}${r._wavPath}`;
+  const authUrl = PROXY + encodeURIComponent(url);
 
   document.getElementById('modal-title').textContent = r.filename || 'Recording';
-  document.getElementById('modal-meta').textContent =
-    `${r.agent_name} • ${r.caller} • ${r.datetime} • ${r.call_type} • ${r.duration_formatted||''}`;
+  document.getElementById('modal-meta').innerHTML =
+    `<b style="color:var(--text)">${r.agent_name||r._agentFolder}</b> • ${r.caller||'Unknown'}<br>${r.datetime||r.date||''} • <span class="badge badge-${(r.call_type||'').toLowerCase()}">${r.call_type||'—'}</span> • ${r.duration_formatted||fmtDuration(r.duration_seconds)||'—'}`;
 
-  const audio = document.getElementById('audio-player');
-  // Nextcloud supports public streaming with credentials in URL (app token)
-  const authUrl = PROXY + encodeURIComponent(url);
-  audio.src = authUrl;
+  // Reset player
+  document.getElementById('play-btn').textContent = '▶';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('time-label').textContent = '0:00 / 0:00';
+  document.getElementById('player-loading').style.display = 'block';
+
+  audioEl.src = authUrl;
+  audioEl.load();
 
   const dl = document.getElementById('modal-download');
   dl.href     = authUrl;
@@ -620,32 +1151,128 @@ function closeModal(e) {
 }
 function closeModalDirect() {
   document.getElementById('modal-overlay').classList.remove('show');
-  document.getElementById('audio-player').pause();
-  document.getElementById('audio-player').src = '';
+  audioEl.pause();
+  audioEl.src = '';
+  document.getElementById('play-btn').textContent = '▶';
 }
 
 function copyLink(i) {
-  const r   = filtered[i];
+  const r = filtered[i];
   const url = `${NC_URL}/remote.php/dav/files/${NC_USER}${r._wavPath}`;
-  navigator.clipboard.writeText(url).then(() => alert('Link copied!'));
+  navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
+}
+function copyShareLink() {
+  navigator.clipboard.writeText(audioEl.src).then(() => showToast('Link copied!'));
 }
 
-function copyShareLink() {
-  const src = document.getElementById('audio-player').src;
-  navigator.clipboard.writeText(src).then(() => alert('Link copied!'));
+// ── Toast ──────────────────────────────────────────────────────
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--accent);color:#000;padding:10px 20px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:9999;transition:opacity .3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+// ── Export Modal ───────────────────────────────────────────────
+function openExportModal() {
+  updateExportCount();
+  document.getElementById('export-modal-overlay').classList.add('show');
+}
+function closeExportModal(e) {
+  if (e.target.id === 'export-modal-overlay') closeExportModalDirect();
+}
+function closeExportModalDirect() {
+  document.getElementById('export-modal-overlay').classList.remove('show');
+}
+
+function updateExportCount() {
+  const agent   = document.getElementById('export-agent').value;
+  const type    = document.getElementById('export-type').value;
+  const from    = document.getElementById('export-date-from').value;
+  const to      = document.getElementById('export-date-to').value;
+  const count   = getExportData(agent, type, from, to).length;
+  document.getElementById('export-count').textContent = `${count} records will be exported`;
+}
+
+['export-agent','export-type','export-date-from','export-date-to'].forEach(id => {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById(id)?.addEventListener('change', updateExportCount);
+    document.getElementById(id)?.addEventListener('input', updateExportCount);
+  });
+});
+
+function getExportData(agent, type, from, to) {
+  return allRecordings.filter(r => {
+    if (agent && (r.agent_name||r._agentFolder) !== agent) return false;
+    if (type  && r.call_type !== type) return false;
+    if (from  && r.date < from) return false;
+    if (to    && r.date > to)   return false;
+    return true;
+  });
+}
+
+function doExport() {
+  const agent = document.getElementById('export-agent').value;
+  const type  = document.getElementById('export-type').value;
+  const from  = document.getElementById('export-date-from').value;
+  const to    = document.getElementById('export-date-to').value;
+  const data  = getExportData(agent, type, from, to);
+
+  if (!data.length) { showToast('No data to export'); return; }
+
+  const headers = ['Date','Time','Agent','Caller','Type','Duration','Size (KB)','Link'];
+  const rows = data.map(r => [
+    r.date || '',
+    r.time || '',
+    r.agent_name || r._agentFolder || '',
+    r.caller || '',
+    r.call_type || '',
+    r.duration_formatted || fmtDuration(r.duration_seconds) || '',
+    r.file_size_kb || '',
+    `${NC_URL}/remote.php/dav/files/${NC_USER}${r._wavPath}`
+  ]);
+
+  const csv = [headers, ...rows].map(row =>
+    row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')
+  ).join('\n');
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const fname = `calls_export${agent?'_'+agent:''}${from?'_'+from:''}${to?'_to_'+to:''}.csv`;
+  a.href = url; a.download = fname; a.click();
+  URL.revokeObjectURL(url);
+  closeExportModalDirect();
+  showToast(`Exported ${data.length} records`);
 }
 
 // ── Auto-load saved credentials ────────────────────────────────
 window.onload = () => {
+  // Attach export modal listeners
+  ['export-agent','export-type','export-date-from','export-date-to'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', updateExportCount);
+  });
+
   const u = localStorage.getItem('nc_url');
   const n = localStorage.getItem('nc_user');
   const p = localStorage.getItem('nc_pass');
-  if (u) document.getElementById('nc-url').value  = u;
-  if (n) document.getElementById('nc-user').value = n;
-  if (p) document.getElementById('nc-pass').value = p;
+
   if (u && n && p) {
+    // Pre-fill fields in case user opens settings later
+    document.getElementById('nc-url').value  = u;
+    document.getElementById('nc-user').value = n;
+    document.getElementById('nc-pass').value = p;
     NC_URL=u; NC_USER=n; NC_PASS=p; NC_DIR=BASE_PATH;
     loadAllData();
+  } else {
+    // First visit — prompt for credentials
+    openSettings();
   }
 };
 </script>
