@@ -1,0 +1,16 @@
+[
+  {
+    "key": "RNC-2026-ABCD",
+    "expiry": "2026-12-31",
+    "device_id": 575F940288325C1,
+    "active": true,
+    "user": "Mohsin"
+  },
+  {
+    "key": "RNC-2026-EFGH",
+    "expiry": "2026-12-31",
+    "device_id": null,
+    "active": true,
+    "user": "Agent_02"
+  }
+]
