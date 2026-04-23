@@ -1004,9 +1004,14 @@ function updateAgentGrid2(){
 }
 
 function filterByAgent(name){
-  activeAgentFilter=name;
-  document.getElementById('rec-agent-hint').textContent=name?'— '+name:'';
-  updateAgentGrid2(); applyFilters();
+  if (activeAgentFilter === name) {
+    activeAgentFilter = '';
+  } else {
+    activeAgentFilter = name;
+  }
+  document.getElementById('rec-agent-hint').textContent = activeAgentFilter ? '— ' + activeAgentFilter : '';
+  updateAgentGrid2(); 
+  applyFilters();
 }
 
 // ── Online Monitor ─────────────────────────────────────────────
