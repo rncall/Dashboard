@@ -334,7 +334,6 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .platform-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 .platform-card { padding: 15px 17px; cursor: default; transition: all .15s; position: relative; overflow: hidden; border-radius: var(--radius); }
 .platform-card:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-lt); }
-.platform-icon { font-size: 22px; margin-bottom: 8px; }
 .platform-name { font-weight: 700; font-size: 14px; margin-bottom: 7px; color: var(--text); }
 .platform-stats { font-family: var(--mono); font-size: 12px; color: var(--text3); line-height: 1.9; }
 .platform-stats b { color: var(--text2); }
@@ -534,7 +533,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <div id="trend-labels"></div>
           </div>
           <div class="chart-card card">
-            <div class="chart-title">Incoming vs Outgoing</div>
+            <div class="chart-title">Call Type Distribution</div>
             <div class="donut-wrap">
               <svg width="90" height="90" viewBox="0 0 90 90">
                 <circle cx="45" cy="45" r="34" fill="none" stroke="var(--donut-track)" stroke-width="14"/>
@@ -544,7 +543,9 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
               <div class="donut-legend">
                 <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><span id="legend-in">Incoming: —</span></div>
                 <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div><span id="legend-out">Outgoing: —</span></div>
-                <div id="donut-extra-legend"></div>
+                <div class="legend-item" id="legend-session-wrap" style="display:none"><div class="legend-dot" style="background:var(--accent)"></div><span id="legend-session">Session: —</span></div>
+                <div class="legend-item" id="legend-meeting-wrap" style="display:none"><div class="legend-dot" style="background:var(--yellow)"></div><span id="legend-meeting">Meeting: —</span></div>
+                <div class="legend-item" id="legend-huddle-wrap" style="display:none"><div class="legend-dot" style="background:var(--red)"></div><span id="legend-huddle">Huddle: —</span></div>
               </div>
             </div>
           </div>
@@ -854,8 +855,9 @@ async function loadMonth(y,m){const recs=[];(await Promise.allSettled(parseEntri
 async function loadDay(y,m,d){const recs=[];(await Promise.allSettled(parseEntries(await propfind(NC_DIR+'/'+y+'/'+m+'/'+d,1)).filter(e=>e.isDir).map(a=>loadAgent(y,m,d,a.name)))).forEach(r=>{if(r.status==='fulfilled')recs.push(...r.value);});return recs;}
 async function loadAgent(y,m,d,agent){const recs=[];const path=NC_DIR+'/'+y+'/'+m+'/'+d+'/'+agent;const entries=parseEntries(await propfind(path,1));const mp4Files=new Set(entries.filter(e=>!e.isDir&&e.name.endsWith('.mp4')).map(e=>e.name));(await Promise.allSettled(entries.filter(e=>!e.isDir&&e.name.endsWith('.json')).map(f=>loadFile(path,f.name,agent,f.size)))).forEach(r=>{if(r.status==='fulfilled'&&r.value){const rec=r.value;const mp4Name=rec.filename?rec.filename.replace('.wav','.mp4').replace('.json','.mp4'):'';if(mp4Files.has(mp4Name)){rec._mp4Path=path+'/'+mp4Name;}recs.push(rec);}});return recs;}
 async function loadFile(dir,file,agent,fileSize){const p=dir+'/'+file;const r=await fetch(PROXY+encodeURIComponent(davUrl(p)),{headers:{'Authorization':authHdr()}});if(!r.ok)return null;const meta=await r.json();const base=p.replace('.json','');meta._wavPath=base+'.wav';meta._mp4Path=null;meta._agentFolder=agent;if(!meta.file_size_kb&&fileSize)meta.file_size_kb=Math.round(fileSize/1024);
-// Detect platform from metadata or folder structure
-if(!meta.platform){const lc=(file+' '+dir).toLowerCase();if(lc.includes('whatsapp'))meta.platform='WhatsApp';else if(lc.includes('zoiper'))meta.platform='Zoiper';else if(lc.includes('teamviewer'))meta.platform='TeamViewer';else if(lc.includes('anydesk'))meta.platform='AnyDesk';else if(lc.includes('ultraviewer'))meta.platform='UltraViewer';else if(lc.includes('meet'))meta.platform='Google Meet';else if(lc.includes('jitsi'))meta.platform='Jitsi';else if(lc.includes('zoom'))meta.platform='Zoom';else if(lc.includes('teams'))meta.platform='Teams';}
+// Detect platform from metadata or folder structure, then normalize
+if(!meta.platform){const lc=(file+' '+dir).toLowerCase();if(lc.includes('zoiper'))meta.platform='ZoiPer5';else if(lc.includes('teamviewer'))meta.platform='TeamViewer';else if(lc.includes('anydesk'))meta.platform='AnyDesk';else if(lc.includes('ultraviewer'))meta.platform='UltraViewer';else if(lc.includes('meet'))meta.platform='GoogleMeet';else if(lc.includes('jitsi'))meta.platform='Jitsi';else if(lc.includes('zoom'))meta.platform='Zoom';else if(lc.includes('teams'))meta.platform='Teams';else if(lc.includes('whatsapp'))meta.platform='WhatsApp';}
+meta.platform=normalizePlatform(meta.platform);
 return meta;}
 
 async function checkMediaType(path,agent,file){// Check if mp4 exists for this recording
@@ -913,22 +915,25 @@ function updateCharts(){
   const sorted=Object.entries(am).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxA=Math.max(...sorted.map(e=>e[1]),1);
   document.getElementById('agent-bar-chart').innerHTML=sorted.map(function(e){const n=e[0],c=e[1];return '<div class="bar-item"><div class="bar-fill" style="height:'+Math.max(4,Math.round((c/maxA)*84))+'px;background:linear-gradient(180deg,var(--accent),var(--accent2));" data-val="'+c+'"></div><div class="bar-label">'+n.split(' ')[0]+'</div></div>';}).join('');
-  // Donut — Incoming vs Outgoing vs other
+  // Donut — all call types with percentages
   const inc=allRecordings.filter(r=>r.call_type==='Incoming').length;
   const out=allRecordings.filter(r=>r.call_type==='Outgoing').length;
   const ses=allRecordings.filter(r=>r.call_type==='Session').length;
   const mtg=allRecordings.filter(r=>r.call_type==='Meeting').length;
   const hdl=allRecordings.filter(r=>r.call_type==='Huddle').length;
   const tot=inc+out+ses+mtg+hdl||1;const circ=214;
-  // Show Incoming + Outgoing on donut, rest in legend
   const inL=circ*(inc/tot),outL=circ*(out/tot);
   document.getElementById('donut-in').setAttribute('stroke-dasharray',inL+' '+(circ-inL));
   document.getElementById('donut-out').setAttribute('stroke-dasharray',outL+' '+(circ-outL));
   document.getElementById('donut-out').setAttribute('stroke-dashoffset',String(54-inL));
   document.getElementById('legend-in').textContent='Incoming: '+inc+' ('+Math.round(inc/tot*100)+'%)';
   document.getElementById('legend-out').textContent='Outgoing: '+out+' ('+Math.round(out/tot*100)+'%)';
+  const sw=document.getElementById('legend-session-wrap'),mw=document.getElementById('legend-meeting-wrap'),hw=document.getElementById('legend-huddle-wrap');
+  if(sw){sw.style.display=ses?'':'none';document.getElementById('legend-session').textContent='Session: '+ses+' ('+Math.round(ses/tot*100)+'%)';}
+  if(mw){mw.style.display=mtg?'':'none';document.getElementById('legend-meeting').textContent='Meeting: '+mtg+' ('+Math.round(mtg/tot*100)+'%)';}
+  if(hw){hw.style.display=hdl?'':'none';document.getElementById('legend-huddle').textContent='Huddle: '+hdl+' ('+Math.round(hdl/tot*100)+'%)';}
   const extraLegend=document.getElementById('donut-extra-legend');
-  if(extraLegend){let ex='';if(ses)ex+='<div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span>Session: '+ses+'</span></div>';if(mtg)ex+='<div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div><span>Meeting: '+mtg+'</span></div>';if(hdl)ex+='<div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><span>Huddle: '+hdl+'</span></div>';extraLegend.innerHTML=ex;}
+  if(extraLegend)extraLegend.innerHTML='';
   // Hourly
   const hours=Array(24).fill(0);
   allRecordings.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))hours[h]++;}});
@@ -947,17 +952,6 @@ function updateCharts(){
 }
 
 // ── Platform Range (Dashboard) ────────────────────────────────────
-const PLATFORM_LIST=[
-  {key:'WhatsApp',icon:'📱'},
-  {key:'Zoiper',icon:'📞'},
-  {key:'TeamViewer',icon:'🖥️'},
-  {key:'AnyDesk',icon:'🖥️'},
-  {key:'UltraViewer',icon:'🖥️'},
-  {key:'Google Meet',icon:'📹'},
-  {key:'Jitsi',icon:'📹'},
-  {key:'Zoom',icon:'📹'},
-  {key:'Teams',icon:'📹'},
-];
 function setPlatformRange(r){platformDateRange=r;document.querySelectorAll('[data-prange]').forEach(b=>b.classList.toggle('active',b.dataset.prange===r));document.getElementById('pfl-custom-range').classList.toggle('show',r==='custom');updatePlatformGrid();}
 function getPlatformRangeDates(){const now=new Date();const pad=n=>String(n).padStart(2,'0');const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const today=iso(now);const r=platformDateRange;if(r==='all')return{from:'',to:''};if(r==='today')return{from:today,to:today};if(r==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);const yd=iso(y);return{from:yd,to:yd};}if(r==='7d'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:iso(d),to:today};}if(r==='30d'){const d=new Date(now);d.setDate(d.getDate()-29);return{from:iso(d),to:today};}if(r==='month')return{from:iso(new Date(now.getFullYear(),now.getMonth(),1)),to:today};if(r==='lastmonth')return{from:iso(new Date(now.getFullYear(),now.getMonth()-1,1)),to:iso(new Date(now.getFullYear(),now.getMonth(),0))};if(r==='custom')return{from:document.getElementById('pfl-from').value,to:document.getElementById('pfl-to').value};return{from:'',to:''};}
 
@@ -965,11 +959,27 @@ function updatePlatformGrid(){
   const{from,to}=getPlatformRangeDates();
   const recs=allRecordings.filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;return true;});
   const platMap={};
-  recs.forEach(r=>{const p=r.platform||'Unknown';if(!platMap[p])platMap[p]={calls:0,incoming:0,outgoing:0,session:0,meeting:0,huddle:0,totalSec:0,hasVideo:0};platMap[p].calls++;const ct=(r.call_type||'').toLowerCase();if(ct==='incoming')platMap[p].incoming++;else if(ct==='outgoing')platMap[p].outgoing++;else if(ct==='session')platMap[p].session++;else if(ct==='meeting')platMap[p].meeting++;else if(ct==='huddle')platMap[p].huddle++;platMap[p].totalSec+=(r.duration_seconds||0);if(r._mp4Path)platMap[p].hasVideo++;});
+  recs.forEach(r=>{const p=r.platform||'WhatsApp';if(!platMap[p])platMap[p]={calls:0,incoming:0,outgoing:0,session:0,meeting:0,huddle:0,totalSec:0,hasVideo:0};platMap[p].calls++;const ct=(r.call_type||'').toLowerCase();if(ct==='incoming')platMap[p].incoming++;else if(ct==='outgoing')platMap[p].outgoing++;else if(ct==='session')platMap[p].session++;else if(ct==='meeting')platMap[p].meeting++;else if(ct==='huddle')platMap[p].huddle++;platMap[p].totalSec+=(r.duration_seconds||0);if(r._mp4Path)platMap[p].hasVideo++;});
   const sorted=Object.entries(platMap).sort((a,b)=>b[1].calls-a[1].calls);
-  const totalCalls=recs.length;
-  let html='<div class="platform-card card" style="border-color:rgba(8,145,178,.3);">'+'<div class="platform-icon">📊</div>'+'<div class="platform-name">All Platforms</div>'+'<div class="platform-stats">Calls: <b>'+totalCalls+'</b><br>Duration: <b>'+fmtDur(recs.reduce((s,r)=>s+(r.duration_seconds||0),0))+'</b></div></div>';
-  html+=sorted.map(function([p,d]){const info=PLATFORM_LIST.find(x=>x.key===p)||{icon:'📞'};const pct=totalCalls?Math.round(d.calls/totalCalls*100):0;let breakdown='';if(d.incoming||d.outgoing)breakdown+='In: <b>'+d.incoming+'</b> Out: <b>'+d.outgoing+'</b><br>';if(d.session)breakdown+='Session: <b>'+d.session+'</b><br>';if(d.meeting)breakdown+='Meeting: <b>'+d.meeting+'</b><br>';if(d.huddle)breakdown+='Huddle: <b>'+d.huddle+'</b><br>';if(d.hasVideo)breakdown+='🎬 <b>'+d.hasVideo+'</b> video<br>';return '<div class="platform-card card">'+'<div class="platform-icon">'+info.icon+'</div>'+'<div class="platform-name">'+p+'</div>'+'<div class="platform-stats">Calls: <b>'+d.calls+'</b> ('+pct+'%)<br>'+breakdown+'Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';}).join('');
+  const totalCalls=recs.length;const totalSec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  let html='<div class="platform-card card" style="border-color:rgba(8,145,178,.3);">'
+    +'<div class="platform-name" style="font-size:13px;color:var(--text3);font-weight:600;margin-bottom:8px;">All Platforms</div>'
+    +'<div class="platform-stats">Calls: <b>'+totalCalls+'</b><br>Duration: <b>'+fmtDur(totalSec)+'</b><br>Avg: <b>'+fmtDur(totalCalls?Math.round(totalSec/totalCalls):0)+'</b></div></div>';
+  html+=sorted.map(function([p,d]){
+    const pct=totalCalls?Math.round(d.calls/totalCalls*100):0;
+    let breakdown='';
+    if(d.incoming||d.outgoing)breakdown+='In: <b>'+d.incoming+'</b>&nbsp; Out: <b>'+d.outgoing+'</b><br>';
+    if(d.session)breakdown+='Session: <b>'+d.session+'</b><br>';
+    if(d.meeting)breakdown+='Meeting: <b>'+d.meeting+'</b><br>';
+    if(d.huddle)breakdown+='Huddle: <b>'+d.huddle+'</b><br>';
+    if(d.hasVideo)breakdown+='Video: <b>'+d.hasVideo+'</b><br>';
+    return '<div class="platform-card card">'
+      +'<div class="platform-name">'+p+'</div>'
+      +'<div class="platform-stats">Calls: <b>'+d.calls+'</b> ('+pct+'%)<br>'
+      +breakdown
+      +'Duration: <b>'+fmtDur(d.totalSec)+'</b><br>'
+      +'Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';
+  }).join('');
   document.getElementById('platform-grid').innerHTML=html;
 }
 
@@ -980,11 +990,15 @@ function refreshAgentGrid2(){updateAgentGrid2();}
 function updateAgentGrid2(){
   const{from,to}=getAgentRangeDates2();
   const recs=allRecordings.filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;return true;});
-  const agents={};recs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';if(!agents[n])agents[n]={calls:0,incoming:0,outgoing:0,totalSec:0};agents[n].calls++;if(r.call_type==='Incoming')agents[n].incoming++;else agents[n].outgoing++;agents[n].totalSec+=(r.duration_seconds||0);});
+  const agents={};recs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';if(!agents[n])agents[n]={calls:0,incoming:0,outgoing:0,totalSec:0};agents[n].calls++;if(r.call_type==='Incoming')agents[n].incoming++;else if(r.call_type==='Outgoing')agents[n].outgoing++;agents[n].totalSec+=(r.duration_seconds||0);});
   const sorted=Object.entries(agents).sort((a,b)=>b[1].calls-a[1].calls);
   const totSec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
-  let html='<div class="agent-card card" style="border-color:rgba(8,145,178,.3);padding:11px 13px;" onclick="filterByAgent(\'\')">'+'<div class="agent-name" style="font-size:13px;margin-bottom:6px;">All Agents</div>'+'<div class="agent-stats" style="font-size:11px;">Calls: <b>'+recs.length+'</b></div></div>';
-  html+=sorted.map(function(e){const n=e[0],d=e[1];return '<div class="agent-card card '+(activeAgentFilter===n?'active':'')+'" style="padding:11px 13px;" onclick="filterByAgent(\''+n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+'<div class="agent-name" style="font-size:13px;margin-bottom:5px;">'+n+'</div>'+'<div class="agent-stats" style="font-size:11px;">'+d.calls+' calls &nbsp;|&nbsp; In: '+d.incoming+' Out: '+d.outgoing+'</div></div>';}).join('');
+  let html='<div class="agent-card card" style="border-color:rgba(8,145,178,.3);padding:11px 13px;" onclick="filterByAgent(\'\')">'
+    +'<div class="agent-name" style="font-size:13px;margin-bottom:6px;">All Agents</div>'
+    +'<div class="agent-stats" style="font-size:11px;">Calls: <b>'+recs.length+'</b><br>Duration: <b>'+fmtDur(totSec)+'</b><br>Avg: <b>'+fmtDur(recs.length?Math.round(totSec/recs.length):0)+'</b></div></div>';
+  html+=sorted.map(function(e){const n=e[0],d=e[1];return '<div class="agent-card card '+(activeAgentFilter===n?'active':'')+'" style="padding:11px 13px;" onclick="filterByAgent(\''+n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
+    +'<div class="agent-name" style="font-size:13px;margin-bottom:5px;">'+n+'</div>'
+    +'<div class="agent-stats" style="font-size:11px;">Calls: <b>'+d.calls+'</b>&nbsp; In: <b>'+d.incoming+'</b>&nbsp; Out: <b>'+d.outgoing+'</b><br>Duration: <b>'+fmtDur(d.totalSec)+'</b>&nbsp; Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';}).join('');
   document.getElementById('agent-grid2').innerHTML=html;
   document.getElementById('rec-agent-hint').textContent=activeAgentFilter?'— '+activeAgentFilter:'';
 }
@@ -1048,8 +1062,31 @@ function clearFilters(){
 function sortBy(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}applyFilters();}
 function changeRows(){const v=document.getElementById('rows-per-page').value;rowsPerPage=v==='all'?Infinity:parseInt(v);currentPage=1;renderTable();}
 
-function getPlatformIcon(p){const icons={WhatsApp:'📱',Zoiper:'📞',TeamViewer:'🖥️',AnyDesk:'🖥️',UltraViewer:'🖥️','Google Meet':'📹',Jitsi:'📹',Zoom:'📹',Teams:'📹'};return icons[p]||'📞';}
-function getMediaPath(r){if(r._mp4Path)return{url:PROXY+encodeURIComponent(davUrl(r._mp4Path)),type:'video',ext:'mp4',fname:(r.filename||'recording').replace('.wav','.mp4').replace('.json','.mp4')};return{url:PROXY+encodeURIComponent(davUrl(r._wavPath)),type:'audio',ext:'wav',fname:r.filename||'recording.wav'};}
+// ── Platform normalization ─────────────────────────────────────
+function normalizePlatform(p){
+  if(!p)return'WhatsApp';
+  const lc=p.toLowerCase().replace(/[\s_-]/g,'');
+  if(lc==='whatsapp'||lc==='wa')return'WhatsApp';
+  if(lc==='zoiper'||lc==='zoiper5'||lc==='zoiper4')return'Zoiper';
+  if(lc==='teamviewer')return'TeamViewer';
+  if(lc==='anydesk')return'AnyDesk';
+  if(lc==='ultraviewer')return'UltraViewer';
+  if(lc==='googlemeet'||lc==='meet')return'Google Meet';
+  if(lc==='jitsi'||lc==='jitsikuiperz')return'Jitsi';
+  if(lc==='zoom')return'Zoom';
+  if(lc==='teams'||lc==='msteams'||lc==='microsoftteams')return'Teams';
+  if(lc==='slack')return'Slack';
+  // Unknown / unrecognized → WhatsApp (default desktop call)
+  return'WhatsApp';
+}
+
+function getPlatformIcon(p){return '';} // no emoji — professional look
+function getMediaPath(r){
+  // Always use video player — it can play both mp4 and wav/audio files
+  if(r._mp4Path){const url=PROXY+encodeURIComponent(davUrl(r._mp4Path));return{url,type:'video',ext:'mp4',fname:(r.filename||'recording').replace(/\.(wav|json)$/,'.mp4')};}
+  const url=PROXY+encodeURIComponent(davUrl(r._wavPath));
+  return{url,type:'video',ext:'wav',fname:r.filename||'recording.wav'};
+}
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
@@ -1062,9 +1099,8 @@ function renderTable(){
   const start=(currentPage-1)*rpp,end=Math.min(start+rpp,tot);
   tbody.innerHTML=filtered.slice(start,end).map(function(r,i){
     const media=getMediaPath(r);
-    const platformIcon=getPlatformIcon(r.platform);
-    const platformLabel=r.platform?'<span title="'+r.platform+'">'+platformIcon+' '+r.platform+'</span>':'—';
-    const mediaIcon=media.type==='video'?'🎬':'▶';
+    const platformLabel=r.platform?r.platform:'—';
+    const mediaIcon='▶';
     return '<tr onclick="openMedia('+(start+i)+')">'
       +'<td>'+(r.datetime||(r.date+' '+(r.time||'')))+'</td>'
       +'<td><span class="agent-tag">'+(r.agent_name||r._agentFolder)+'</span></td>'
@@ -1098,19 +1134,16 @@ function openMedia(i){
   const media=getMediaPath(r);
   currentAudioUrl=media.url;
   document.getElementById('audio-title').textContent=r.filename||'Recording';
-  const platLabel=r.platform?'<span style="background:var(--accent-lt);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;">'+getPlatformIcon(r.platform)+' '+(r.platform)+'</span> · ':'';
+  const platLabel=r.platform?'<span style="background:var(--accent-lt);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;">'+(r.platform)+'</span> · ':'';
   document.getElementById('audio-meta').innerHTML='<b>'+(r.agent_name||r._agentFolder)+'</b> · '+(r.caller||'Unknown')+'<br>'+(r.datetime||r.date||'')+' · '+platLabel+'<span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span> · '+(r.duration_formatted||fmtDur(r.duration_seconds)||'—');
   const audioEl=document.getElementById('audio-player');
   const videoEl=document.getElementById('video-player');
   audioEl.pause(); videoEl.pause();
   audioEl.src=''; videoEl.src='';
-  if(media.type==='video'){
-    videoEl.src=media.url; videoEl.load();
-    videoEl.style.display='block'; audioEl.style.display='none';
-  } else {
-    audioEl.src=media.url; audioEl.load();
-    audioEl.style.display='block'; videoEl.style.display='none';
-  }
+  // Always open in video player — it handles both video (mp4) and audio (wav)
+  audioEl.style.display='none';
+  videoEl.style.display='block';
+  videoEl.src=media.url; videoEl.load();
   document.getElementById('audio-dl').href=media.url;
   document.getElementById('audio-dl').download=media.fname;
   document.getElementById('audio-overlay').classList.add('show');
