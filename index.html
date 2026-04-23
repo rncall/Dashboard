@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WA Call Dashboard</title>
+<title>Call Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ── Theme Variables ── */
@@ -324,8 +324,20 @@ tbody tr:hover { background: var(--accent-lt); }
 tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertical-align: middle; color: var(--text); }
 
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; font-family: var(--mono); }
-.badge-incoming { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-b); }
-.badge-outgoing { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-b); }
+.badge-incoming  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-b); }
+.badge-outgoing  { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-b); }
+.badge-session   { background: var(--accent-lt); color: var(--accent); border: 1px solid rgba(37,99,235,.3); }
+.badge-meeting   { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-b); }
+.badge-huddle    { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-b); }
+
+/* Platform grid */
+.platform-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.platform-card { padding: 15px 17px; cursor: default; transition: all .15s; position: relative; overflow: hidden; border-radius: var(--radius); }
+.platform-card:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-lt); }
+.platform-icon { font-size: 22px; margin-bottom: 8px; }
+.platform-name { font-weight: 700; font-size: 14px; margin-bottom: 7px; color: var(--text); }
+.platform-stats { font-family: var(--mono); font-size: 12px; color: var(--text3); line-height: 1.9; }
+.platform-stats b { color: var(--text2); }
 .agent-tag { background: var(--accent-lt); color: var(--accent); padding: 3px 9px; border-radius: 4px; font-size: 12px; }
 .action-btns { display: flex; gap: 5px; }
 .tbl-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text2); width: 28px; height: 28px; border-radius: 5px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: all .12s; text-decoration: none; }
@@ -376,8 +388,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .field input:focus { border-color: var(--accent); }
 .connected-badge { background: var(--green-bg); border: 1px solid var(--green-b); color: var(--green); padding: 5px 13px; border-radius: 20px; font-family: var(--mono); font-size: 12px; }
 
-/* Audio modal */
-#audio-modal { width: 520px; max-width: 92vw; }
+/* Media modal */
+#audio-modal { width: 600px; max-width: 92vw; }
 #audio-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; word-break: break-all; line-height: 1.4; color: var(--text); }
 #audio-modal .meta { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-bottom: 16px; line-height: 1.8; }
 #audio-player { width: 100%; margin-bottom: 14px; border-radius: 6px; accent-color: var(--accent); }
@@ -402,7 +414,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 <!-- Header -->
 <header>
   <div class="logo">
-    <div class="logo-icon">WA</div>
+    <div class="logo-icon">RN</div>
     <div class="logo-text">
       <h1>Call <span>Dashboard</span></h1>
       <div class="logo-sub">Recording Monitor</div>
@@ -419,7 +431,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 <!-- Tab Bar -->
 <div class="tab-bar">
   <button class="tab-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">
-    Dashboard <span class="tab-count" id="badge-total">—</span>
+    Dashboard
   </button>
   <button class="tab-btn" id="tab-recordings" onclick="switchTab('recordings')">
     Recordings <span class="tab-count" id="badge-filtered">—</span>
@@ -455,13 +467,14 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
   </div>
 </div>
 
-<!-- Audio Modal -->
+<!-- Media Modal (Audio + Video) -->
 <div id="audio-overlay" class="modal-overlay" onclick="if(event.target.id==='audio-overlay')closeAudio()">
   <div id="audio-modal" class="modal-box">
     <button class="modal-close" onclick="closeAudio()">&#x2715;</button>
     <h3 id="audio-title">—</h3>
     <div class="meta" id="audio-meta">—</div>
-    <audio id="audio-player" controls preload="none"></audio>
+    <audio id="audio-player" controls preload="none" style="display:none;width:100%;margin-bottom:14px;border-radius:6px;accent-color:var(--accent);"></audio>
+    <video id="video-player" controls preload="none" style="display:none;width:100%;max-height:340px;border-radius:8px;background:#000;margin-bottom:14px;"></video>
     <div class="modal-actions">
       <a id="audio-dl" class="btn btn-primary btn-sm" download>Download</a>
       <button class="btn btn-ghost btn-sm" onclick="copyAudioLink()">Copy Link</button>
@@ -476,7 +489,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
     <h3>Export Recordings</h3>
     <div class="export-grid">
       <div class="field"><label>Agent</label><select id="export-agent" style="width:100%"><option value="">All Agents</option></select></div>
-      <div class="field"><label>Type</label><select id="export-type" style="width:100%"><option value="">All Types</option><option value="Incoming">Incoming</option><option value="Outgoing">Outgoing</option></select></div>
+      <div class="field"><label>Type</label><select id="export-type" style="width:100%"><option value="">All Types</option><option value="Incoming">Incoming</option><option value="Outgoing">Outgoing</option><option value="Session">Session</option><option value="Meeting">Meeting</option><option value="Huddle">Huddle</option></select></div>
       <div class="field"><label>Date From</label><input type="date" id="export-date-from" style="width:100%"></div>
       <div class="field"><label>Date To</label><input type="date" id="export-date-to" style="width:100%"></div>
       <div class="export-full"><span id="export-count" style="font-family:var(--mono);font-size:12px;color:var(--text3);"></span></div>
@@ -531,6 +544,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
               <div class="donut-legend">
                 <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><span id="legend-in">Incoming: —</span></div>
                 <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div><span id="legend-out">Outgoing: —</span></div>
+                <div id="donut-extra-legend"></div>
               </div>
             </div>
           </div>
@@ -555,24 +569,24 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
           <div class="hm-wrap" id="hm-wrap"></div>
         </div>
 
-        <!-- Agent Summary -->
-        <div class="sec-label">Agent Summary <span id="agent-filter-hint" style="color:var(--accent);font-size:10px;margin-left:6px;font-weight:400;letter-spacing:0;text-transform:none;"></span></div>
+        <!-- Platform Summary -->
+        <div class="sec-label">Platform Summary</div>
         <div class="agent-range-bar">
-          <button class="afl-btn active" data-range="all" onclick="setAgentRange('all')">All Time</button>
-          <button class="afl-btn" data-range="today" onclick="setAgentRange('today')">Today</button>
-          <button class="afl-btn" data-range="yesterday" onclick="setAgentRange('yesterday')">Yesterday</button>
-          <button class="afl-btn" data-range="7d" onclick="setAgentRange('7d')">7 Days</button>
-          <button class="afl-btn" data-range="30d" onclick="setAgentRange('30d')">30 Days</button>
-          <button class="afl-btn" data-range="month" onclick="setAgentRange('month')">This Month</button>
-          <button class="afl-btn" data-range="lastmonth" onclick="setAgentRange('lastmonth')">Prev Month</button>
-          <button class="afl-btn" data-range="custom" onclick="setAgentRange('custom')">Custom</button>
-          <div class="afl-date-range" id="afl-custom-range">
-            <input type="date" class="afl-date-input" id="afl-from" onchange="refreshAgentGrid()">
+          <button class="afl-btn active" data-prange="all" onclick="setPlatformRange('all')">All Time</button>
+          <button class="afl-btn" data-prange="today" onclick="setPlatformRange('today')">Today</button>
+          <button class="afl-btn" data-prange="yesterday" onclick="setPlatformRange('yesterday')">Yesterday</button>
+          <button class="afl-btn" data-prange="7d" onclick="setPlatformRange('7d')">7 Days</button>
+          <button class="afl-btn" data-prange="30d" onclick="setPlatformRange('30d')">30 Days</button>
+          <button class="afl-btn" data-prange="month" onclick="setPlatformRange('month')">This Month</button>
+          <button class="afl-btn" data-prange="lastmonth" onclick="setPlatformRange('lastmonth')">Prev Month</button>
+          <button class="afl-btn" data-prange="custom" onclick="setPlatformRange('custom')">Custom</button>
+          <div class="afl-date-range" id="pfl-custom-range">
+            <input type="date" class="afl-date-input" id="pfl-from" onchange="updatePlatformGrid()">
             <span style="color:var(--text3);font-size:11px;font-family:var(--mono)">to</span>
-            <input type="date" class="afl-date-input" id="afl-to" onchange="refreshAgentGrid()">
+            <input type="date" class="afl-date-input" id="pfl-to" onchange="updatePlatformGrid()">
           </div>
         </div>
-        <div class="agent-grid" id="agent-grid"></div>
+        <div class="platform-grid" id="platform-grid"></div>
 
       </div><!-- /dash-main -->
 
@@ -620,13 +634,28 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
           <div class="agent-grid" id="agent-grid2" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;"></div>
         </div>
 
-        <!-- Search / Type filters -->
+        <!-- Search / Type / Platform filters -->
         <div class="filters-bar">
           <input type="text" class="search-box" id="search" placeholder="Search caller, 01710..., agent..." oninput="applyFilters()">
+          <select id="filter-platform" onchange="applyFilters()">
+            <option value="">All Platforms</option>
+            <option value="WhatsApp">WhatsApp</option>
+            <option value="Zoiper">Zoiper</option>
+            <option value="TeamViewer">TeamViewer</option>
+            <option value="AnyDesk">AnyDesk</option>
+            <option value="UltraViewer">UltraViewer</option>
+            <option value="Google Meet">Google Meet</option>
+            <option value="Jitsi">Jitsi</option>
+            <option value="Zoom">Zoom</option>
+            <option value="Teams">Teams</option>
+          </select>
           <select id="filter-type" onchange="applyFilters()">
             <option value="">All Types</option>
             <option value="Incoming">Incoming</option>
             <option value="Outgoing">Outgoing</option>
+            <option value="Session">Session</option>
+            <option value="Meeting">Meeting</option>
+            <option value="Huddle">Huddle</option>
           </select>
           <input type="date" id="filter-date-from" onchange="applyFilters()">
           <input type="date" id="filter-date-to" onchange="applyFilters()">
@@ -648,6 +677,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
                 <th onclick="sortBy('datetime')">Date &amp; Time &#8597;</th>
                 <th onclick="sortBy('agent_name')">Agent &#8597;</th>
                 <th onclick="sortBy('caller')">Caller &#8597;</th>
+                <th onclick="sortBy('platform')">Platform &#8597;</th>
                 <th onclick="sortBy('call_type')">Type &#8597;</th>
                 <th onclick="sortBy('duration_seconds')">Duration &#8597;</th>
                 <th onclick="sortBy('file_size_kb')">Size &#8597;</th>
@@ -709,7 +739,8 @@ let sortCol = 'datetime', sortDir = -1;
 let NC_URL = '', NC_USER = '', NC_PASS = '', NC_DIR = '';
 let currentPage = 1, rowsPerPage = 20;
 let activeAgentFilter = '';
-let agentDateRange = 'all', agentDateRange2 = 'all';
+let agentDateRange2 = 'all';
+let platformDateRange = 'all';
 let onlineTimer = null, _agentStatus = [];
 let trendMode = '7d';
 let currentAudioUrl = '';
@@ -773,7 +804,7 @@ async function connect() {
 function disconnect() {
   ['nc_url','nc_user','nc_pass',CACHE_KEY,CACHE_TS].forEach(k=>localStorage.removeItem(k));
   NC_URL=NC_USER=NC_PASS=''; allRecordings=[]; filtered=[];
-  renderTable(); updateStats(); updateAgentGrid(); updateAgentGrid2(); updateCharts();
+  renderTable(); updateStats(); updatePlatformGrid(); updateAgentGrid2(); updateCharts();
   setStatus('NOT CONNECTED',''); closeSettings(); setTimeout(openSettings,200);
 }
 function setStatus(msg,type='') { const el=document.getElementById('status-bar'); el.textContent=msg; el.className=type; }
@@ -821,15 +852,21 @@ async function loadAllData() {
 async function loadYear(y){const recs=[];(await Promise.allSettled(parseEntries(await propfind(NC_DIR+'/'+y,1)).filter(e=>e.isDir).map(m=>loadMonth(y,m.name)))).forEach(r=>{if(r.status==='fulfilled')recs.push(...r.value);});return recs;}
 async function loadMonth(y,m){const recs=[];(await Promise.allSettled(parseEntries(await propfind(NC_DIR+'/'+y+'/'+m,1)).filter(e=>e.isDir).map(d=>loadDay(y,m,d.name)))).forEach(r=>{if(r.status==='fulfilled')recs.push(...r.value);});return recs;}
 async function loadDay(y,m,d){const recs=[];(await Promise.allSettled(parseEntries(await propfind(NC_DIR+'/'+y+'/'+m+'/'+d,1)).filter(e=>e.isDir).map(a=>loadAgent(y,m,d,a.name)))).forEach(r=>{if(r.status==='fulfilled')recs.push(...r.value);});return recs;}
-async function loadAgent(y,m,d,agent){const recs=[];const path=NC_DIR+'/'+y+'/'+m+'/'+d+'/'+agent;(await Promise.allSettled(parseEntries(await propfind(path,1)).filter(e=>!e.isDir&&e.name.endsWith('.json')).map(f=>loadFile(path,f.name,agent,f.size)))).forEach(r=>{if(r.status==='fulfilled'&&r.value)recs.push(r.value);});return recs;}
-async function loadFile(dir,file,agent,wavSize){const p=dir+'/'+file;const r=await fetch(PROXY+encodeURIComponent(davUrl(p)),{headers:{'Authorization':authHdr()}});if(!r.ok)return null;const meta=await r.json();meta._wavPath=p.replace('.json','.wav');meta._agentFolder=agent;if(!meta.file_size_kb&&wavSize)meta.file_size_kb=Math.round(wavSize/1024);return meta;}
+async function loadAgent(y,m,d,agent){const recs=[];const path=NC_DIR+'/'+y+'/'+m+'/'+d+'/'+agent;const entries=parseEntries(await propfind(path,1));const mp4Files=new Set(entries.filter(e=>!e.isDir&&e.name.endsWith('.mp4')).map(e=>e.name));(await Promise.allSettled(entries.filter(e=>!e.isDir&&e.name.endsWith('.json')).map(f=>loadFile(path,f.name,agent,f.size)))).forEach(r=>{if(r.status==='fulfilled'&&r.value){const rec=r.value;const mp4Name=rec.filename?rec.filename.replace('.wav','.mp4').replace('.json','.mp4'):'';if(mp4Files.has(mp4Name)){rec._mp4Path=path+'/'+mp4Name;}recs.push(rec);}});return recs;}
+async function loadFile(dir,file,agent,fileSize){const p=dir+'/'+file;const r=await fetch(PROXY+encodeURIComponent(davUrl(p)),{headers:{'Authorization':authHdr()}});if(!r.ok)return null;const meta=await r.json();const base=p.replace('.json','');meta._wavPath=base+'.wav';meta._mp4Path=null;meta._agentFolder=agent;if(!meta.file_size_kb&&fileSize)meta.file_size_kb=Math.round(fileSize/1024);
+// Detect platform from metadata or folder structure
+if(!meta.platform){const lc=(file+' '+dir).toLowerCase();if(lc.includes('whatsapp'))meta.platform='WhatsApp';else if(lc.includes('zoiper'))meta.platform='Zoiper';else if(lc.includes('teamviewer'))meta.platform='TeamViewer';else if(lc.includes('anydesk'))meta.platform='AnyDesk';else if(lc.includes('ultraviewer'))meta.platform='UltraViewer';else if(lc.includes('meet'))meta.platform='Google Meet';else if(lc.includes('jitsi'))meta.platform='Jitsi';else if(lc.includes('zoom'))meta.platform='Zoom';else if(lc.includes('teams'))meta.platform='Teams';}
+return meta;}
+
+async function checkMediaType(path,agent,file){// Check if mp4 exists for this recording
+const mp4path=path+'/'+file.replace('.json','.mp4');try{const r=await fetch(PROXY+encodeURIComponent(davUrl(mp4path)),{method:'HEAD',headers:{'Authorization':authHdr()}});if(r.ok)return mp4path;}catch(e){}return null;}
 
 function finishLoad() {
   updateStats(); updateCharts(); updateTrendChart();
-  updateAgentGrid(); updateAgentGrid2();
+  updatePlatformGrid(); updateAgentGrid2();
   populateAgentFilter(); applyFilters();
   startOnlineMonitor();
-  document.getElementById('badge-total').textContent = allRecordings.length;
+  document.getElementById('badge-filtered').textContent = allRecordings.length;
 }
 
 // ── Stats ──────────────────────────────────────────────────────
@@ -876,16 +913,22 @@ function updateCharts(){
   const sorted=Object.entries(am).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxA=Math.max(...sorted.map(e=>e[1]),1);
   document.getElementById('agent-bar-chart').innerHTML=sorted.map(function(e){const n=e[0],c=e[1];return '<div class="bar-item"><div class="bar-fill" style="height:'+Math.max(4,Math.round((c/maxA)*84))+'px;background:linear-gradient(180deg,var(--accent),var(--accent2));" data-val="'+c+'"></div><div class="bar-label">'+n.split(' ')[0]+'</div></div>';}).join('');
-  // Donut
+  // Donut — Incoming vs Outgoing vs other
   const inc=allRecordings.filter(r=>r.call_type==='Incoming').length;
   const out=allRecordings.filter(r=>r.call_type==='Outgoing').length;
-  const tot=inc+out||1;const circ=214;
+  const ses=allRecordings.filter(r=>r.call_type==='Session').length;
+  const mtg=allRecordings.filter(r=>r.call_type==='Meeting').length;
+  const hdl=allRecordings.filter(r=>r.call_type==='Huddle').length;
+  const tot=inc+out+ses+mtg+hdl||1;const circ=214;
+  // Show Incoming + Outgoing on donut, rest in legend
   const inL=circ*(inc/tot),outL=circ*(out/tot);
   document.getElementById('donut-in').setAttribute('stroke-dasharray',inL+' '+(circ-inL));
   document.getElementById('donut-out').setAttribute('stroke-dasharray',outL+' '+(circ-outL));
   document.getElementById('donut-out').setAttribute('stroke-dashoffset',String(54-inL));
   document.getElementById('legend-in').textContent='Incoming: '+inc+' ('+Math.round(inc/tot*100)+'%)';
   document.getElementById('legend-out').textContent='Outgoing: '+out+' ('+Math.round(out/tot*100)+'%)';
+  const extraLegend=document.getElementById('donut-extra-legend');
+  if(extraLegend){let ex='';if(ses)ex+='<div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div><span>Session: '+ses+'</span></div>';if(mtg)ex+='<div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div><span>Meeting: '+mtg+'</span></div>';if(hdl)ex+='<div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><span>Huddle: '+hdl+'</span></div>';extraLegend.innerHTML=ex;}
   // Hourly
   const hours=Array(24).fill(0);
   allRecordings.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))hours[h]++;}});
@@ -903,25 +946,31 @@ function updateCharts(){
   document.getElementById('hm-wrap').innerHTML=h;
 }
 
-// ── Agent Range (Dashboard) ────────────────────────────────────
-function setAgentRange(r){agentDateRange=r;document.querySelectorAll('[data-range]').forEach(b=>b.classList.toggle('active',b.dataset.range===r));document.getElementById('afl-custom-range').classList.toggle('show',r==='custom');updateAgentGrid();}
-function getAgentRangeDates(mode){const now=new Date();const pad=n=>String(n).padStart(2,'0');const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const today=iso(now);const r=mode;if(r==='all')return{from:'',to:''};if(r==='today')return{from:today,to:today};if(r==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);const yd=iso(y);return{from:yd,to:yd};}if(r==='7d'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:iso(d),to:today};}if(r==='30d'){const d=new Date(now);d.setDate(d.getDate()-29);return{from:iso(d),to:today};}if(r==='month')return{from:iso(new Date(now.getFullYear(),now.getMonth(),1)),to:today};if(r==='lastmonth')return{from:iso(new Date(now.getFullYear(),now.getMonth()-1,1)),to:iso(new Date(now.getFullYear(),now.getMonth(),0))};if(r==='custom')return{from:document.getElementById('afl-from').value,to:document.getElementById('afl-to').value};return{from:'',to:''};}
-function refreshAgentGrid(){updateAgentGrid();}
+// ── Platform Range (Dashboard) ────────────────────────────────────
+const PLATFORM_LIST=[
+  {key:'WhatsApp',icon:'📱'},
+  {key:'Zoiper',icon:'📞'},
+  {key:'TeamViewer',icon:'🖥️'},
+  {key:'AnyDesk',icon:'🖥️'},
+  {key:'UltraViewer',icon:'🖥️'},
+  {key:'Google Meet',icon:'📹'},
+  {key:'Jitsi',icon:'📹'},
+  {key:'Zoom',icon:'📹'},
+  {key:'Teams',icon:'📹'},
+];
+function setPlatformRange(r){platformDateRange=r;document.querySelectorAll('[data-prange]').forEach(b=>b.classList.toggle('active',b.dataset.prange===r));document.getElementById('pfl-custom-range').classList.toggle('show',r==='custom');updatePlatformGrid();}
+function getPlatformRangeDates(){const now=new Date();const pad=n=>String(n).padStart(2,'0');const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const today=iso(now);const r=platformDateRange;if(r==='all')return{from:'',to:''};if(r==='today')return{from:today,to:today};if(r==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);const yd=iso(y);return{from:yd,to:yd};}if(r==='7d'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:iso(d),to:today};}if(r==='30d'){const d=new Date(now);d.setDate(d.getDate()-29);return{from:iso(d),to:today};}if(r==='month')return{from:iso(new Date(now.getFullYear(),now.getMonth(),1)),to:today};if(r==='lastmonth')return{from:iso(new Date(now.getFullYear(),now.getMonth()-1,1)),to:iso(new Date(now.getFullYear(),now.getMonth(),0))};if(r==='custom')return{from:document.getElementById('pfl-from').value,to:document.getElementById('pfl-to').value};return{from:'',to:''};}
 
-function buildAgentGrid(recs, filteredByRange) {
-  const agents={};
-  filteredByRange.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';if(!agents[n])agents[n]={calls:0,incoming:0,outgoing:0,totalSec:0};agents[n].calls++;if(r.call_type==='Incoming')agents[n].incoming++;else agents[n].outgoing++;agents[n].totalSec+=(r.duration_seconds||0);});
-  const sorted=Object.entries(agents).sort((a,b)=>b[1].calls-a[1].calls);
-  const totSec=filteredByRange.reduce((s,r)=>s+(r.duration_seconds||0),0);
-  let html='<div class="agent-card card" style="border-color:rgba(8,145,178,.3);" onclick="filterByAgent(\'\')">'+'<div class="agent-name">All Agents</div>'+'<div class="agent-stats">Calls: <b>'+filteredByRange.length+'</b><br>Duration: <b>'+fmtDur(totSec)+'</b></div></div>';
-  html+=sorted.map(function(e){const n=e[0],d=e[1];return '<div class="agent-card card '+(activeAgentFilter===n?'active':'')+'" onclick="filterByAgent(\''+n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+'<div class="agent-name">'+n+'</div>'+'<div class="agent-stats">Calls: <b>'+d.calls+'</b><br>In: <b>'+d.incoming+'</b> &nbsp;Out: <b>'+d.outgoing+'</b><br>Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';}).join('');
-  return html;
-}
-
-function updateAgentGrid(){
-  const{from,to}=getAgentRangeDates(agentDateRange);
+function updatePlatformGrid(){
+  const{from,to}=getPlatformRangeDates();
   const recs=allRecordings.filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;return true;});
-  document.getElementById('agent-grid').innerHTML=buildAgentGrid(allRecordings,recs);
+  const platMap={};
+  recs.forEach(r=>{const p=r.platform||'Unknown';if(!platMap[p])platMap[p]={calls:0,incoming:0,outgoing:0,session:0,meeting:0,huddle:0,totalSec:0,hasVideo:0};platMap[p].calls++;const ct=(r.call_type||'').toLowerCase();if(ct==='incoming')platMap[p].incoming++;else if(ct==='outgoing')platMap[p].outgoing++;else if(ct==='session')platMap[p].session++;else if(ct==='meeting')platMap[p].meeting++;else if(ct==='huddle')platMap[p].huddle++;platMap[p].totalSec+=(r.duration_seconds||0);if(r._mp4Path)platMap[p].hasVideo++;});
+  const sorted=Object.entries(platMap).sort((a,b)=>b[1].calls-a[1].calls);
+  const totalCalls=recs.length;
+  let html='<div class="platform-card card" style="border-color:rgba(8,145,178,.3);">'+'<div class="platform-icon">📊</div>'+'<div class="platform-name">All Platforms</div>'+'<div class="platform-stats">Calls: <b>'+totalCalls+'</b><br>Duration: <b>'+fmtDur(recs.reduce((s,r)=>s+(r.duration_seconds||0),0))+'</b></div></div>';
+  html+=sorted.map(function([p,d]){const info=PLATFORM_LIST.find(x=>x.key===p)||{icon:'📞'};const pct=totalCalls?Math.round(d.calls/totalCalls*100):0;let breakdown='';if(d.incoming||d.outgoing)breakdown+='In: <b>'+d.incoming+'</b> Out: <b>'+d.outgoing+'</b><br>';if(d.session)breakdown+='Session: <b>'+d.session+'</b><br>';if(d.meeting)breakdown+='Meeting: <b>'+d.meeting+'</b><br>';if(d.huddle)breakdown+='Huddle: <b>'+d.huddle+'</b><br>';if(d.hasVideo)breakdown+='🎬 <b>'+d.hasVideo+'</b> video<br>';return '<div class="platform-card card">'+'<div class="platform-icon">'+info.icon+'</div>'+'<div class="platform-name">'+p+'</div>'+'<div class="platform-stats">Calls: <b>'+d.calls+'</b> ('+pct+'%)<br>'+breakdown+'Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';}).join('');
+  document.getElementById('platform-grid').innerHTML=html;
 }
 
 // ── Agent Range (Recordings tab) ───────────────────────────────
@@ -942,9 +991,8 @@ function updateAgentGrid2(){
 
 function filterByAgent(name){
   activeAgentFilter=name;
-  document.getElementById('agent-filter-hint').textContent=name?'— '+name:'';
   document.getElementById('rec-agent-hint').textContent=name?'— '+name:'';
-  updateAgentGrid(); updateAgentGrid2(); applyFilters();
+  updateAgentGrid2(); applyFilters();
 }
 
 // ── Online Monitor ─────────────────────────────────────────────
@@ -971,15 +1019,17 @@ function applyFilters(){
   const raw=document.getElementById('search').value;
   const search=raw.toLowerCase();
   const type=document.getElementById('filter-type').value;
+  const platform=document.getElementById('filter-platform').value;
   const from=document.getElementById('filter-date-from').value;
   const to=document.getElementById('filter-date-to').value;
   const isPhone=/\d{5,}/.test(raw.replace(/[\s+\-()']/g,''));
   filtered=allRecordings.filter(function(r){
     if(activeAgentFilter&&(r.agent_name||r._agentFolder)!==activeAgentFilter)return false;
     if(type&&r.call_type!==type)return false;
+    if(platform&&(r.platform||'')!==platform)return false;
     if(from&&r.date<from)return false;
     if(to&&r.date>to)return false;
-    if(search){if(isPhone&&phoneMatch(r.caller,raw))return true;const hay=((r.caller||'')+' '+(r.agent_name||'')+' '+(r._agentFolder||'')+' '+(r.call_type||'')).toLowerCase();if(!hay.includes(search))return false;}
+    if(search){if(isPhone&&phoneMatch(r.caller,raw))return true;const hay=((r.caller||'')+' '+(r.agent_name||'')+' '+(r._agentFolder||'')+' '+(r.call_type||'')+' '+(r.platform||'')).toLowerCase();if(!hay.includes(search))return false;}
     return true;
   });
   filtered.sort(function(a,b){let va=a[sortCol]||'',vb=b[sortCol]||'';if(sortCol==='duration_seconds'||sortCol==='file_size_kb'){va=+(va||0);vb=+(vb||0);}return(va>vb?1:va<vb?-1:0)*sortDir;});
@@ -988,15 +1038,18 @@ function applyFilters(){
 function clearFilters(){
   document.getElementById('search').value='';
   document.getElementById('filter-type').value='';
+  document.getElementById('filter-platform').value='';
   document.getElementById('filter-date-from').value='';
   document.getElementById('filter-date-to').value='';
   activeAgentFilter='';
-  document.getElementById('agent-filter-hint').textContent='';
   document.getElementById('rec-agent-hint').textContent='';
-  updateAgentGrid();updateAgentGrid2();applyFilters();
+  updateAgentGrid2();applyFilters();
 }
 function sortBy(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}applyFilters();}
 function changeRows(){const v=document.getElementById('rows-per-page').value;rowsPerPage=v==='all'?Infinity:parseInt(v);currentPage=1;renderTable();}
+
+function getPlatformIcon(p){const icons={WhatsApp:'📱',Zoiper:'📞',TeamViewer:'🖥️',AnyDesk:'🖥️',UltraViewer:'🖥️','Google Meet':'📹',Jitsi:'📹',Zoom:'📹',Teams:'📹'};return icons[p]||'📞';}
+function getMediaPath(r){if(r._mp4Path)return{url:PROXY+encodeURIComponent(davUrl(r._mp4Path)),type:'video',ext:'mp4',fname:(r.filename||'recording').replace('.wav','.mp4').replace('.json','.mp4')};return{url:PROXY+encodeURIComponent(davUrl(r._wavPath)),type:'audio',ext:'wav',fname:r.filename||'recording.wav'};}
 
 function renderTable(){
   const tbody=document.getElementById('table-body');
@@ -1008,16 +1061,21 @@ function renderTable(){
   const totalPages=Math.ceil(tot/rpp);if(currentPage>totalPages)currentPage=totalPages;
   const start=(currentPage-1)*rpp,end=Math.min(start+rpp,tot);
   tbody.innerHTML=filtered.slice(start,end).map(function(r,i){
-    return '<tr onclick="openAudio('+(start+i)+')">'
+    const media=getMediaPath(r);
+    const platformIcon=getPlatformIcon(r.platform);
+    const platformLabel=r.platform?'<span title="'+r.platform+'">'+platformIcon+' '+r.platform+'</span>':'—';
+    const mediaIcon=media.type==='video'?'🎬':'▶';
+    return '<tr onclick="openMedia('+(start+i)+')">'
       +'<td>'+(r.datetime||(r.date+' '+(r.time||'')))+'</td>'
       +'<td><span class="agent-tag">'+(r.agent_name||r._agentFolder)+'</span></td>'
       +'<td>'+(r.caller||'—')+'</td>'
+      +'<td style="font-size:13px;">'+platformLabel+'</td>'
       +'<td><span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span></td>'
       +'<td>'+(r.duration_formatted||fmtDur(r.duration_seconds)||'—')+'</td>'
       +'<td>'+(r.file_size_kb?r.file_size_kb+'KB':'—')+'</td>'
       +'<td onclick="event.stopPropagation()"><div class="action-btns">'
-      +'<button class="tbl-btn" onclick="openAudio('+(start+i)+')" title="Play">&#9654;</button>'
-      +'<a class="tbl-btn" href="'+PROXY+encodeURIComponent(davUrl(r._wavPath))+'" download="'+(r.filename||'recording.wav')+'" title="Download">&#8595;</a>'
+      +'<button class="tbl-btn" onclick="openMedia('+(start+i)+')" title="Play">'+mediaIcon+'</button>'
+      +'<a class="tbl-btn" href="'+media.url+'" download="'+media.fname+'" title="Download">&#8595;</a>'
       +'<button class="tbl-btn" onclick="copyLink('+(start+i)+')" title="Copy link">&#128279;</button>'
       +'</div></td></tr>';
   }).join('');
@@ -1034,22 +1092,37 @@ function renderTable(){
 }
 function goPage(p){const rpp=rowsPerPage===Infinity?filtered.length:rowsPerPage;const tot=Math.ceil(filtered.length/rpp);if(p<1||p>tot)return;currentPage=p;renderTable();}
 
-// ── Audio ──────────────────────────────────────────────────────
-function openAudio(i){
+// ── Media Player (Audio + Video) ───────────────────────────────
+function openMedia(i){
   const r=filtered[i];
-  const url=PROXY+encodeURIComponent(davUrl(r._wavPath));
-  currentAudioUrl=url;
+  const media=getMediaPath(r);
+  currentAudioUrl=media.url;
   document.getElementById('audio-title').textContent=r.filename||'Recording';
-  document.getElementById('audio-meta').innerHTML='<b>'+(r.agent_name||r._agentFolder)+'</b> &middot; '+(r.caller||'Unknown')+'<br>'+(r.datetime||r.date||'')+' &middot; <span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span> &middot; '+(r.duration_formatted||fmtDur(r.duration_seconds)||'—');
-  const audio=document.getElementById('audio-player');
-  audio.src=url; audio.load();
-  document.getElementById('audio-dl').href=url;
-  document.getElementById('audio-dl').download=r.filename||'recording.wav';
+  const platLabel=r.platform?'<span style="background:var(--accent-lt);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;">'+getPlatformIcon(r.platform)+' '+(r.platform)+'</span> · ':'';
+  document.getElementById('audio-meta').innerHTML='<b>'+(r.agent_name||r._agentFolder)+'</b> · '+(r.caller||'Unknown')+'<br>'+(r.datetime||r.date||'')+' · '+platLabel+'<span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span> · '+(r.duration_formatted||fmtDur(r.duration_seconds)||'—');
+  const audioEl=document.getElementById('audio-player');
+  const videoEl=document.getElementById('video-player');
+  audioEl.pause(); videoEl.pause();
+  audioEl.src=''; videoEl.src='';
+  if(media.type==='video'){
+    videoEl.src=media.url; videoEl.load();
+    videoEl.style.display='block'; audioEl.style.display='none';
+  } else {
+    audioEl.src=media.url; audioEl.load();
+    audioEl.style.display='block'; videoEl.style.display='none';
+  }
+  document.getElementById('audio-dl').href=media.url;
+  document.getElementById('audio-dl').download=media.fname;
   document.getElementById('audio-overlay').classList.add('show');
 }
-function closeAudio(){document.getElementById('audio-overlay').classList.remove('show');const a=document.getElementById('audio-player');a.pause();a.src='';}
+function openAudio(i){openMedia(i);}
+function closeAudio(){
+  document.getElementById('audio-overlay').classList.remove('show');
+  const a=document.getElementById('audio-player');const v=document.getElementById('video-player');
+  a.pause();a.src='';v.pause();v.src='';
+}
 function copyAudioLink(){navigator.clipboard.writeText(currentAudioUrl).then(()=>showToast('Link copied!'));}
-function copyLink(i){const r=filtered[i];navigator.clipboard.writeText(davUrl(r._wavPath)).then(()=>showToast('Link copied!'));}
+function copyLink(i){const r=filtered[i];const media=getMediaPath(r);navigator.clipboard.writeText(media.url).then(()=>showToast('Link copied!'));}
 
 // ── Export ─────────────────────────────────────────────────────
 function openExport(){updateExportCount();document.getElementById('export-overlay').classList.add('show');}
@@ -1060,8 +1133,8 @@ function doExport(){
   const a=document.getElementById('export-agent').value,t=document.getElementById('export-type').value;
   const f=document.getElementById('export-date-from').value,to=document.getElementById('export-date-to').value;
   const data=getExportData(a,t,f,to);if(!data.length){showToast('No data to export');return;}
-  const headers=['Date','Time','Agent','Caller','Type','Duration','Size (KB)','Link'];
-  const rows=data.map(r=>[r.date||'',r.time||'',r.agent_name||r._agentFolder||'',r.caller||'',r.call_type||'',r.duration_formatted||fmtDur(r.duration_seconds)||'',r.file_size_kb||'',davUrl(r._wavPath)]);
+  const headers=['Date','Time','Agent','Caller','Platform','Type','Duration','Size (KB)','Link'];
+  const rows=data.map(r=>[r.date||'',r.time||'',r.agent_name||r._agentFolder||'',r.caller||'',r.platform||'',r.call_type||'',r.duration_formatted||fmtDur(r.duration_seconds)||'',r.file_size_kb||'',davUrl(r._wavPath)]);
   const csv=[headers,...rows].map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);const a2=document.createElement('a');
