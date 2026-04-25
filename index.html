@@ -483,7 +483,14 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .connected-badge { background: var(--green-bg); border: 1px solid var(--green-b); color: var(--green); padding: 5px 13px; border-radius: 20px; font-family: var(--mono); font-size: 12px; }
 
 /* Media modal */
+/* Media modal */
 #audio-modal { width: 660px; max-width: 94vw; }
+#audio-overlay { z-index: 1500; }
+/* Plyr fullscreen fix — must be above modal overlay */
+.plyr--fullscreen-fallback { z-index: 9999 !important; position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; max-height: none !important; border-radius: 0 !important; }
+.plyr:-webkit-full-screen { width: 100% !important; height: 100% !important; }
+.plyr:fullscreen { width: 100% !important; height: 100% !important; }
+.plyr--video.plyr--fullscreen-fallback video { object-fit: contain !important; width: 100% !important; height: 100% !important; }
 #audio-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; word-break: break-all; line-height: 1.4; color: var(--text); }
 #audio-modal .meta { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-bottom: 16px; line-height: 1.8; }
 #audio-player { width: 100%; margin-bottom: 14px; border-radius: 6px; accent-color: var(--accent); }
@@ -498,7 +505,27 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 /* Toast */
 #toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: var(--surface); padding: 10px 18px; border-radius: var(--radius-sm); font-family: var(--mono); font-size: 12px; z-index: 9999; opacity: 0; transition: opacity .25s; pointer-events: none; box-shadow: var(--shadow-md); }
 
-/* Responsive */
+/* Date range picker */
+.date-range-wrap {
+  display: flex; align-items: center;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); overflow: hidden;
+  transition: border-color .15s;
+}
+.date-range-wrap:focus-within { border-color: var(--accent); }
+.date-range-wrap input[type=date] {
+  border: none; background: transparent; border-radius: 0;
+  padding: 7px 10px; width: 130px; outline: none;
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+}
+.date-range-wrap input[type=date]::-webkit-calendar-picker-indicator {
+  opacity: .5; cursor: pointer; filter: var(--cal-filter, none);
+}
+[data-theme="dark"] { --cal-filter: invert(1); }
+.date-range-sep {
+  color: var(--text3); font-size: 13px; padding: 0 2px;
+  flex-shrink: 0; user-select: none;
+}
 @media (max-width: 1100px) { .dash-layout, .rec-layout { grid-template-columns: 1fr; } .status-sidebar { display: none; } }
 @media (max-width: 800px) { .stats-grid { grid-template-columns: repeat(2,1fr); } .analytics-row { grid-template-columns: 1fr; } .page-body { padding: 14px 16px; } header, .tab-bar { padding-left: 16px; padding-right: 16px; } }
 </style>
@@ -744,6 +771,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <option value="Jitsi">Jitsi</option>
             <option value="Zoom">Zoom</option>
             <option value="Teams">Teams</option>
+            <option value="Manual">Manual</option>
           </select>
           <select id="filter-type" onchange="applyFilters()">
             <option value="">All Types</option>
@@ -753,8 +781,11 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <option value="Meeting">Meeting</option>
             <option value="Huddle">Huddle</option>
           </select>
-          <input type="date" id="filter-date-from" onchange="applyFilters()">
-          <input type="date" id="filter-date-to" onchange="applyFilters()">
+          <div class="date-range-wrap" id="date-range-wrap">
+            <input type="date" id="filter-date-from" onchange="applyFilters()" placeholder="dd/mm/yyyy">
+            <span class="date-range-sep">→</span>
+            <input type="date" id="filter-date-to" onchange="applyFilters()" placeholder="dd/mm/yyyy">
+          </div>
           <span class="filter-clear" onclick="clearFilters()">Clear filters</span>
         </div>
 
@@ -1054,7 +1085,7 @@ function updatePlatformGrid(){
   const{from,to}=getPlatformRangeDates();
   const recs=allRecordings.filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;return true;});
   const platMap={};
-  recs.forEach(r=>{const p=r.platform||'WhatsApp';if(!platMap[p])platMap[p]={calls:0,incoming:0,outgoing:0,session:0,meeting:0,huddle:0,totalSec:0,hasVideo:0};platMap[p].calls++;const ct=(r.call_type||'').toLowerCase();if(ct==='incoming')platMap[p].incoming++;else if(ct==='outgoing')platMap[p].outgoing++;else if(ct==='session')platMap[p].session++;else if(ct==='meeting')platMap[p].meeting++;else if(ct==='huddle')platMap[p].huddle++;platMap[p].totalSec+=(r.duration_seconds||0);if(r._mp4Path)platMap[p].hasVideo++;});
+  recs.forEach(r=>{const p=r.platform||'WhatsApp';if(!platMap[p])platMap[p]={calls:0,incoming:0,outgoing:0,session:0,meeting:0,huddle:0,totalSec:0,hasVideo:0,hasAudio:0};platMap[p].calls++;const ct=(r.call_type||'').toLowerCase();if(ct==='incoming')platMap[p].incoming++;else if(ct==='outgoing')platMap[p].outgoing++;else if(ct==='session')platMap[p].session++;else if(ct==='meeting')platMap[p].meeting++;else if(ct==='huddle')platMap[p].huddle++;platMap[p].totalSec+=(r.duration_seconds||0);if(r._mp4Path)platMap[p].hasVideo++;else platMap[p].hasAudio++;});
   // Per-platform color palette
   const PC={
     'WhatsApp':   {grad:'linear-gradient(90deg,#25d366,#128c7e)', color:'#25d366', glow:'rgba(37,211,102,.15)', shadow:'rgba(37,211,102,.12)', glowDk:'rgba(37,211,102,.25)', shadowDk:'rgba(37,211,102,.2)'},
@@ -1067,6 +1098,7 @@ function updatePlatformGrid(){
     'Zoom':       {grad:'linear-gradient(90deg,#2d8cff,#90c4ff)', color:'#2d8cff', glow:'rgba(45,140,255,.15)', shadow:'rgba(45,140,255,.12)', glowDk:'rgba(45,140,255,.25)', shadowDk:'rgba(45,140,255,.2)'},
     'Teams':      {grad:'linear-gradient(90deg,#464eb8,#7b83eb)', color:'#464eb8', glow:'rgba(70,78,184,.15)', shadow:'rgba(70,78,184,.12)', glowDk:'rgba(70,78,184,.25)', shadowDk:'rgba(70,78,184,.2)'},
     'Slack':      {grad:'linear-gradient(90deg,#4a154b,#e01e5a)', color:'#4a154b', glow:'rgba(224,30,90,.15)', shadow:'rgba(224,30,90,.12)', glowDk:'rgba(224,30,90,.25)', shadowDk:'rgba(224,30,90,.2)'},
+    'Manual':     {grad:'linear-gradient(90deg,#64748b,#94a3b8)', color:'#64748b', glow:'rgba(100,116,139,.15)', shadow:'rgba(100,116,139,.12)', glowDk:'rgba(100,116,139,.25)', shadowDk:'rgba(100,116,139,.2)'},
   };
   const defPC={grad:'linear-gradient(90deg,var(--accent),var(--accent2))',color:'var(--accent)',glow:'var(--accent-lt)',shadow:'rgba(37,99,235,.10)',glowDk:'rgba(37,99,235,.2)',shadowDk:'rgba(37,99,235,.18)'};
   const sorted=Object.entries(platMap).sort((a,b)=>b[1].calls-a[1].calls);
@@ -1083,7 +1115,13 @@ function updatePlatformGrid(){
     if(d.session)breakdown+='Session: <b>'+d.session+'</b><br>';
     if(d.meeting)breakdown+='Meeting: <b>'+d.meeting+'</b><br>';
     if(d.huddle)breakdown+='Huddle: <b>'+d.huddle+'</b><br>';
-    if(d.hasVideo)breakdown+='Video: <b>'+d.hasVideo+'</b><br>';
+    if(d.hasAudio||d.hasVideo){
+      let media='';
+      if(d.hasAudio)media+='Audio: <b>'+d.hasAudio+'</b>';
+      if(d.hasAudio&&d.hasVideo)media+=' &nbsp;';
+      if(d.hasVideo)media+='Video: <b>'+d.hasVideo+'</b>';
+      breakdown+=media+'<br>';
+    }
     return '<div class="platform-card card" style="--pc-grad:'+pc.grad+';--pc-color:'+pc.color+';--pc-glow:'+pc.glow+';--pc-shadow:'+pc.shadow+';--pc-glow-dk:'+pc.glowDk+';--pc-shadow-dk:'+pc.shadowDk+';">'
       +'<div class="platform-name">'+p+'</div>'
       +'<div class="platform-stats">Calls: <b>'+d.calls+'</b> <span style="color:var(--text3);font-size:11px;">('+pct+'%)</span><br>'
@@ -1116,7 +1154,7 @@ function updateAgentGrid2(){
     return '<div class="agent-card card '+(activeAgentFilter===n?'active':'')+'" style="padding:11px 13px;" onclick="filterByAgent(\''+n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
     +'<div class="agent-name" style="font-size:13px;margin-bottom:4px;">'+n+'</div>'
     +'<div class="agent-calls-highlight">'+d.calls+'<span class="agent-calls-pct">'+pct+'%</span></div>'
-    +'<div class="agent-stats" style="font-size:11px;">In: <b>'+d.incoming+'</b> &nbsp;Out: <b>'+d.outgoing+'</b><br>Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';}).join('');
+    +'<div class="agent-stats" style="font-size:11px;">In: <b>'+d.incoming+'</b> &nbsp;Out: <b>'+d.outgoing+'</b><br>Dur: <b>'+fmtDur(d.totalSec)+'</b> &nbsp;Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';}).join('');
   document.getElementById('agent-grid2').innerHTML=html;
   document.getElementById('rec-agent-hint').textContent=activeAgentFilter?'— '+activeAgentFilter:'';
 }
@@ -1199,6 +1237,7 @@ function normalizePlatform(p){
   if(lc==='zoom')return'Zoom';
   if(lc==='teams'||lc==='msteams'||lc==='microsoftteams')return'Teams';
   if(lc==='slack')return'Slack';
+  if(lc==='manual'||lc==='manualentry'||lc==='manualadd')return'Manual';
   // Unknown / unrecognized → WhatsApp (default desktop call)
   return'WhatsApp';
 }
@@ -1274,10 +1313,12 @@ function openMedia(i){
     videoEl.src=media.url; videoEl.load();
     _plyrInstance=new Plyr(videoEl,{
       controls:['play','progress','current-time','duration','mute','volume','settings','fullscreen'],
-      settings:['speed','quality'],
+      settings:['speed'],
       speed:{selected:1,options:[0.5,0.75,1,1.25,1.5,2]},
       keyboard:{focused:true,global:false},
       tooltips:{controls:true,seek:true},
+      fullscreen:{enabled:true,fallback:true,iosNative:false,container:null},
+      ratio:'16:9',
     });
   } else {
     videoEl.style.display='none'; audioEl.style.display='block';
