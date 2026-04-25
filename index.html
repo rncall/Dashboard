@@ -505,27 +505,53 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 /* Toast */
 #toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: var(--surface); padding: 10px 18px; border-radius: var(--radius-sm); font-family: var(--mono); font-size: 12px; z-index: 9999; opacity: 0; transition: opacity .25s; pointer-events: none; box-shadow: var(--shadow-md); }
 
-/* Date range picker */
-.date-range-wrap {
-  display: flex; align-items: center;
+/* ── Custom Date Range Picker ── */
+.drp-wrap { position: relative; }
+.drp-btn {
+  display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--border2);
-  border-radius: var(--radius-sm); overflow: hidden;
+  color: var(--text); padding: 7px 13px;
+  border-radius: var(--radius-sm); cursor: pointer;
+  font-family: var(--mono); font-size: 13px;
+  white-space: nowrap; transition: border-color .15s;
+  min-width: 200px;
+}
+.drp-btn:hover, .drp-btn.open { border-color: var(--accent); }
+#drp-label { flex: 1; text-align: left; }
+.drp-cal-icon { color: var(--text3); font-size: 13px; flex-shrink: 0; }
+.drp-clear {
+  color: var(--text3); font-size: 11px; cursor: pointer;
+  width: 16px; height: 16px; display: none;
+  align-items: center; justify-content: center;
+  border-radius: 50%; transition: all .12s; flex-shrink: 0;
+}
+.drp-clear:hover { background: var(--red-bg); color: var(--red); }
+.drp-clear.show { display: flex; }
+.drp-panel {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+  padding: 16px; z-index: 500; min-width: 300px;
+}
+.drp-panel.open { display: block; }
+.drp-fields { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+.drp-field { flex: 1; }
+.drp-field label {
+  display: block; font-size: 10px; color: var(--text3);
+  letter-spacing: 1px; text-transform: uppercase;
+  font-family: var(--mono); margin-bottom: 5px;
+}
+.drp-field input[type=date] {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border2); color: var(--text);
+  padding: 7px 10px; border-radius: var(--radius-sm);
+  font-family: var(--mono); font-size: 13px; outline: none;
   transition: border-color .15s;
 }
-.date-range-wrap:focus-within { border-color: var(--accent); }
-.date-range-wrap input[type=date] {
-  border: none; background: transparent; border-radius: 0;
-  padding: 7px 10px; width: 130px; outline: none;
-  color: var(--text); font-family: var(--mono); font-size: 13px;
-}
-.date-range-wrap input[type=date]::-webkit-calendar-picker-indicator {
-  opacity: .5; cursor: pointer; filter: var(--cal-filter, none);
-}
-[data-theme="dark"] { --cal-filter: invert(1); }
-.date-range-sep {
-  color: var(--text3); font-size: 13px; padding: 0 2px;
-  flex-shrink: 0; user-select: none;
-}
+.drp-field input[type=date]:focus { border-color: var(--accent); }
+[data-theme="dark"] .drp-field input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .6; }
+.drp-arrow { color: var(--text3); font-size: 16px; padding-bottom: 8px; flex-shrink: 0; }
+.drp-actions { display: flex; gap: 8px; }
 @media (max-width: 1100px) { .dash-layout, .rec-layout { grid-template-columns: 1fr; } .status-sidebar { display: none; } }
 @media (max-width: 800px) { .stats-grid { grid-template-columns: repeat(2,1fr); } .analytics-row { grid-template-columns: 1fr; } .page-body { padding: 14px 16px; } header, .tab-bar { padding-left: 16px; padding-right: 16px; } }
 </style>
@@ -686,10 +712,16 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
           </div>
         </div>
 
-        <!-- Heatmap -->
-        <div class="chart-card card" style="padding:18px 20px;margin-bottom:20px;">
-          <div class="chart-title">Call Volume Heatmap — Day &times; Hour</div>
-          <div class="hm-wrap" id="hm-wrap"></div>
+        <!-- Heatmap + Insights Row -->
+        <div class="analytics-row" style="margin-bottom:20px;">
+          <div class="chart-card card">
+            <div class="chart-title">Call Volume Heatmap — Day &times; Hour</div>
+            <div class="hm-wrap" id="hm-wrap"></div>
+          </div>
+          <div class="chart-card card" id="insights-card">
+            <div class="chart-title">Key Insights</div>
+            <div id="insights-content" style="font-family:var(--mono);font-size:12px;color:var(--text3);">Loading...</div>
+          </div>
         </div>
 
         <!-- Platform Summary -->
@@ -781,10 +813,29 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <option value="Meeting">Meeting</option>
             <option value="Huddle">Huddle</option>
           </select>
-          <div class="date-range-wrap" id="date-range-wrap">
-            <input type="date" id="filter-date-from" onchange="applyFilters()" placeholder="dd/mm/yyyy">
-            <span class="date-range-sep">→</span>
-            <input type="date" id="filter-date-to" onchange="applyFilters()" placeholder="dd/mm/yyyy">
+          <div class="drp-wrap" id="drp-wrap">
+            <button type="button" class="drp-btn" id="drp-btn" onclick="drpToggle()">
+              <span id="drp-label">All Dates</span>
+              <span class="drp-cal-icon">&#128197;</span>
+              <span class="drp-clear" id="drp-clear" onclick="event.stopPropagation();drpClear()" title="Clear dates">&#x2715;</span>
+            </button>
+            <div class="drp-panel" id="drp-panel">
+              <div class="drp-fields">
+                <div class="drp-field">
+                  <label>Start</label>
+                  <input type="date" id="filter-date-from" onchange="drpChange()">
+                </div>
+                <div class="drp-arrow">→</div>
+                <div class="drp-field">
+                  <label>End</label>
+                  <input type="date" id="filter-date-to" onchange="drpChange()">
+                </div>
+              </div>
+              <div class="drp-actions">
+                <button class="drp-apply btn btn-primary btn-sm" onclick="drpApply()">Apply</button>
+                <button class="drp-clear-btn btn btn-ghost btn-sm" onclick="drpClear()">Clear</button>
+              </div>
+            </div>
           </div>
           <span class="filter-clear" onclick="clearFilters()">Clear filters</span>
         </div>
@@ -993,6 +1044,7 @@ function finishLoad() {
   updateStats(); updateCharts(); updateTrendChart();
   updatePlatformGrid(); updateAgentGrid2();
   populateAgentFilter(); applyFilters();
+  updateInsights();
   startOnlineMonitor();
   document.getElementById('badge-filtered').textContent = allRecordings.length;
 }
@@ -1244,10 +1296,12 @@ function normalizePlatform(p){
 
 function getPlatformIcon(p){return '';} // no emoji — professional look
 function getMediaPath(r){
-  // Always use video player — it can play both mp4 and wav/audio files
-  if(r._mp4Path){const url=PROXY+encodeURIComponent(davUrl(r._mp4Path));return{url,type:'video',ext:'mp4',fname:(r.filename||'recording').replace(/\.(wav|json)$/,'.mp4')};}
+  if(r._mp4Path){
+    const url=PROXY+encodeURIComponent(davUrl(r._mp4Path));
+    return{url,type:'video',ext:'mp4',fname:(r.filename||'recording').replace(/\.(wav|json)$/,'.mp4')};
+  }
   const url=PROXY+encodeURIComponent(davUrl(r._wavPath));
-  return{url,type:'video',ext:'wav',fname:r.filename||'recording.wav'};
+  return{url,type:'audio',ext:'wav',fname:r.filename||'recording.wav'};
 }
 
 function renderTable(){
@@ -1301,39 +1355,58 @@ function openMedia(i){
   const platLabel=r.platform?'<span style="background:var(--accent-lt);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;">'+(r.platform)+'</span> · ':'';
   document.getElementById('audio-meta').innerHTML='<b>'+(r.agent_name||r._agentFolder)+'</b> · '+(r.caller||'Unknown')+'<br>'+(r.datetime||r.date||'')+' · '+platLabel+'<span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span> · '+(r.duration_formatted||fmtDur(r.duration_seconds)||'—');
 
-  // Destroy previous Plyr instance
-  if(_plyrInstance){try{_plyrInstance.destroy();}catch(e){}_plyrInstance=null;}
+  // Destroy previous Plyr instance cleanly
+  if(_plyrInstance){
+    try{_plyrInstance.destroy();}catch(e){}
+    _plyrInstance=null;
+  }
 
-  const isVideo=!!(r._mp4Path);
-  const audioEl=document.getElementById('audio-player');
-  const videoEl=document.getElementById('video-player');
+  const isVideo = media.type === 'video';
+  const audioEl = document.getElementById('audio-player');
+  const videoEl = document.getElementById('video-player');
+
+  // Reset both elements
+  audioEl.pause(); videoEl.pause();
+  audioEl.removeAttribute('src'); videoEl.removeAttribute('src');
+  audioEl.load(); videoEl.load();
 
   if(isVideo){
-    audioEl.style.display='none'; videoEl.style.display='block';
-    videoEl.src=media.url; videoEl.load();
-    _plyrInstance=new Plyr(videoEl,{
-      controls:['play','progress','current-time','duration','mute','volume','settings','fullscreen'],
-      settings:['speed'],
-      speed:{selected:1,options:[0.5,0.75,1,1.25,1.5,2]},
-      keyboard:{focused:true,global:false},
-      tooltips:{controls:true,seek:true},
-      fullscreen:{enabled:true,fallback:true,iosNative:false,container:null},
-      ratio:'16:9',
+    audioEl.style.display='none';
+    videoEl.style.display='block';
+    videoEl.src = media.url;
+    _plyrInstance = new Plyr(videoEl, {
+      controls: ['play','progress','current-time','duration','mute','volume','settings','fullscreen'],
+      settings: ['speed'],
+      speed: {selected:1, options:[0.5,0.75,1,1.25,1.5,2]},
+      keyboard: {focused:true, global:false},
+      tooltips: {controls:true, seek:true},
+      fullscreen: {enabled:true, fallback:'force', iosNative:false},
+    });
+    // Move Plyr container out of modal for native fullscreen to work properly
+    _plyrInstance.on('enterfullscreen', ()=>{
+      const pc = videoEl.closest('.plyr');
+      if(pc) document.body.appendChild(pc);
+    });
+    _plyrInstance.on('exitfullscreen', ()=>{
+      const pc = videoEl.closest('.plyr');
+      const modal = document.getElementById('audio-modal');
+      if(pc && modal) modal.insertBefore(pc, modal.querySelector('.modal-actions'));
     });
   } else {
-    videoEl.style.display='none'; audioEl.style.display='block';
-    audioEl.src=media.url; audioEl.load();
-    _plyrInstance=new Plyr(audioEl,{
-      controls:['play','progress','current-time','duration','mute','volume','settings'],
-      settings:['speed'],
-      speed:{selected:1,options:[0.5,0.75,1,1.25,1.5,2]},
-      keyboard:{focused:true,global:false},
-      tooltips:{controls:true,seek:true},
+    videoEl.style.display='none';
+    audioEl.style.display='block';
+    audioEl.src = media.url;
+    _plyrInstance = new Plyr(audioEl, {
+      controls: ['play','progress','current-time','duration','mute','volume','settings'],
+      settings: ['speed'],
+      speed: {selected:1, options:[0.5,0.75,1,1.25,1.5,2]},
+      keyboard: {focused:true, global:false},
+      tooltips: {controls:true, seek:true},
     });
   }
 
-  document.getElementById('audio-dl').href=media.url;
-  document.getElementById('audio-dl').download=media.fname;
+  document.getElementById('audio-dl').href = media.url;
+  document.getElementById('audio-dl').download = media.fname;
   document.getElementById('audio-overlay').classList.add('show');
 }
 function openAudio(i){openMedia(i);}
@@ -1362,6 +1435,113 @@ function doExport(){
   const url=URL.createObjectURL(blob);const a2=document.createElement('a');
   a2.href=url;a2.download='calls_export'+(a?'_'+a:'')+(f?'_'+f:'')+(to?'_to_'+to:'')+'.csv';a2.click();
   URL.revokeObjectURL(url);closeExport();showToast('Exported '+data.length+' records');
+}
+
+// ── Date Range Picker ──────────────────────────────────────────
+function drpFmtDate(val){
+  if(!val)return'';
+  const[y,m,d]=val.split('-');
+  return d+'/'+m+'/'+y;
+}
+function drpUpdateLabel(){
+  const f=document.getElementById('filter-date-from').value;
+  const t=document.getElementById('filter-date-to').value;
+  const lbl=document.getElementById('drp-label');
+  const clr=document.getElementById('drp-clear');
+  if(f||t){
+    lbl.textContent=(f?drpFmtDate(f):'...')+' – '+(t?drpFmtDate(t):'...');
+    clr.classList.add('show');
+  } else {
+    lbl.textContent='All Dates';
+    clr.classList.remove('show');
+  }
+}
+function drpToggle(){
+  const panel=document.getElementById('drp-panel');
+  const btn=document.getElementById('drp-btn');
+  const isOpen=panel.classList.contains('open');
+  panel.classList.toggle('open',!isOpen);
+  btn.classList.toggle('open',!isOpen);
+}
+function drpChange(){drpUpdateLabel();}
+function drpApply(){
+  document.getElementById('drp-panel').classList.remove('open');
+  document.getElementById('drp-btn').classList.remove('open');
+  applyFilters();
+}
+function drpClear(){
+  document.getElementById('filter-date-from').value='';
+  document.getElementById('filter-date-to').value='';
+  drpUpdateLabel();
+  document.getElementById('drp-panel').classList.remove('open');
+  document.getElementById('drp-btn').classList.remove('open');
+  applyFilters();
+}
+// Close panel on outside click
+document.addEventListener('click',function(e){
+  const wrap=document.getElementById('drp-wrap');
+  if(wrap&&!wrap.contains(e.target)){
+    document.getElementById('drp-panel').classList.remove('open');
+    document.getElementById('drp-btn').classList.remove('open');
+  }
+});
+
+// ── Key Insights ───────────────────────────────────────────────
+function updateInsights(){
+  if(!allRecordings.length){document.getElementById('insights-content').innerHTML='<span>No data yet.</span>';return;}
+  const recs=allRecordings;
+  const tot=recs.length;
+  // Busiest day of week
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const byday=Array(7).fill(0);
+  recs.forEach(r=>{const d=new Date(r.datetime||(r.date+' '+(r.time||'00:00')));if(!isNaN(d))byday[d.getDay()]++;});
+  const busiestDay=days[byday.indexOf(Math.max(...byday))];
+  // Busiest hour
+  const byhour=Array(24).fill(0);
+  recs.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))byhour[h]++;}});
+  const busiestHour=byhour.indexOf(Math.max(...byhour));
+  const busiestHourStr=busiestHour+':00–'+(busiestHour+1)+':00';
+  // Quietest hour (only during business hours 8-20)
+  const bizHours=byhour.slice(8,20);
+  const quietestHour=8+bizHours.indexOf(Math.min(...bizHours));
+  // Top agent
+  const byagent={};recs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';byagent[n]=(byagent[n]||0)+1;});
+  const topAgent=Object.entries(byagent).sort((a,b)=>b[1]-a[1])[0];
+  const topAgentPct=tot?Math.round(topAgent[1]/tot*100):0;
+  // Avg duration
+  const totalSec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  const avgSec=tot?Math.round(totalSec/tot):0;
+  // Weekend vs weekday
+  const weekend=recs.filter(r=>{const d=new Date(r.datetime||(r.date||''));return!isNaN(d)&&(d.getDay()===0||d.getDay()===6);}).length;
+  const weekdayAvg=Math.round((tot-weekend)/5);
+  // Top platform
+  const byplat={};recs.forEach(r=>{const p=r.platform||'WhatsApp';byplat[p]=(byplat[p]||0)+1;});
+  const topPlat=Object.entries(byplat).sort((a,b)=>b[1]-a[1])[0];
+  const topPlatPct=tot?Math.round(topPlat[1]/tot*100):0;
+  // Video ratio
+  const hasVideo=recs.filter(r=>r._mp4Path).length;
+  const videoPct=tot?Math.round(hasVideo/tot*100):0;
+
+  const row=(icon,label,val,sub='')=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="width:28px;height:28px;border-radius:7px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">${icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;">${label}</div>
+        <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:1px;">${val}${sub?'<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:5px;">'+sub+'</span>':''}</div>
+      </div>
+    </div>`;
+
+  document.getElementById('insights-content').innerHTML=`
+    <div style="margin:-2px 0;">
+      ${row('📅','Busiest Day',busiestDay,byday[days.indexOf(busiestDay)]+' calls')}
+      ${row('⏰','Peak Hour',busiestHourStr,byhour[busiestHour]+' calls')}
+      ${row('😴','Quietest Hour (biz)',quietestHour+':00–'+(quietestHour+1)+':00',bizHours[quietestHour-8]+' calls')}
+      ${row('🏆','Top Agent',topAgent[0],topAgentPct+'% · '+topAgent[1]+' calls')}
+      ${row('📱','Top Platform',topPlat[0],topPlatPct+'%')}
+      ${row('⏱️','Avg Call Duration',fmtDur(avgSec))}
+      ${row('🎬','Video Recordings',hasVideo+' / '+tot,videoPct+'%')}
+      ${row('📆','Weekday Daily Avg','~'+weekdayAvg+' calls','vs '+weekend+' weekend total')}
+    </div>`;
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';},2200);}
