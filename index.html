@@ -6,6 +6,10 @@
 <title>Call Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video-js.min.css"/>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 /* Video.js theme overrides */
 .video-js { width: 100% !important; border-radius: 8px; overflow: hidden; margin-bottom: 14px; background: #000; }
@@ -552,6 +556,68 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 </head>
 <body>
 
+<!-- ══ AUTH GATE ══════════════════════════════════════════════ -->
+<div id="auth-gate" style="
+  position:fixed;inset:0;z-index:99999;
+  background:var(--bg,#f1f5f9);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Inter',sans-serif;
+">
+  <div style="
+    background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);
+    border-radius:16px;padding:40px 36px;width:380px;max-width:92vw;
+    box-shadow:0 20px 60px rgba(0,0,0,.1);text-align:center;
+  ">
+    <div style="font-size:28px;font-weight:800;color:var(--text,#0f172a);margin-bottom:4px;">Call Dashboard</div>
+    <div style="font-size:13px;color:var(--text3,#94a3b8);margin-bottom:28px;letter-spacing:.5px;">Recording Monitor</div>
+
+    <!-- Google login -->
+    <button id="btn-google-login" onclick="authGoogleLogin()" style="
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      width:100%;padding:11px 16px;border-radius:8px;cursor:pointer;
+      border:1px solid #e2e8f0;background:#fff;font-size:14px;font-weight:500;
+      color:#374151;transition:all .15s;margin-bottom:16px;
+    " onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 20-9 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16.1 18.9 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.6 26.8 36 24 36c-5.3 0-9.6-2.9-11.3-7l-6.6 4.8C9.7 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.6 4.6-4.8 6l6.2 5.2C40.5 36.1 44 30.5 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
+      Continue with Google
+    </button>
+
+    <!-- Divider -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+      <span style="font-size:12px;color:#94a3b8;">or</span>
+      <div style="flex:1;height:1px;background:#e2e8f0;"></div>
+    </div>
+
+    <!-- Email/password -->
+    <input id="auth-email" type="email" placeholder="Email address" style="
+      width:100%;padding:10px 13px;border:1px solid #e2e8f0;border-radius:8px;
+      font-size:14px;color:#0f172a;outline:none;margin-bottom:10px;box-sizing:border-box;
+      background:#f8fafc;font-family:'Inter',sans-serif;transition:border-color .15s;
+    " onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'"
+      onkeydown="if(event.key==='Enter')authEmailLogin()">
+    <input id="auth-pass" type="password" placeholder="Password" style="
+      width:100%;padding:10px 13px;border:1px solid #e2e8f0;border-radius:8px;
+      font-size:14px;color:#0f172a;outline:none;margin-bottom:14px;box-sizing:border-box;
+      background:#f8fafc;font-family:'Inter',sans-serif;transition:border-color .15s;
+    " onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'"
+      onkeydown="if(event.key==='Enter')authEmailLogin()">
+    <button onclick="authEmailLogin()" style="
+      width:100%;padding:11px;border-radius:8px;border:none;
+      background:#2563eb;color:#fff;font-size:14px;font-weight:600;
+      cursor:pointer;font-family:'Inter',sans-serif;transition:background .15s;
+    " onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+      Sign In
+    </button>
+
+    <div id="auth-error" style="
+      margin-top:12px;font-size:12px;color:#ef4444;min-height:18px;
+    "></div>
+    <div id="auth-loading" style="display:none;margin-top:12px;font-size:12px;color:#94a3b8;">Signing in...</div>
+  </div>
+</div>
+<!-- ══ END AUTH GATE ══════════════════════════════════════════ -->
+
 <!-- Header -->
 <header>
   <div class="logo">
@@ -563,9 +629,16 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
   </div>
   <div class="header-right">
     <div id="status-bar">NOT CONNECTED</div>
+    <div id="user-chip" style="display:none;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 4px;cursor:default;">
+      <img id="user-avatar" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'">
+      <span id="user-name" style="font-size:12px;font-weight:600;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <span id="user-role-badge" style="font-size:10px;font-family:var(--mono);letter-spacing:.5px;background:var(--accent-lt);color:var(--accent);padding:1px 6px;border-radius:4px;"></span>
+    </div>
     <button class="icon-btn" onclick="loadAllData()" title="Refresh data">&#8635;</button>
     <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#9790;</button>
-    <button class="icon-btn" onclick="openSettings()" title="Connection settings">&#9881;</button>
+    <button class="icon-btn" id="admin-btn" style="display:none;" onclick="window.open('admin.html','_blank')" title="Admin Panel">&#9881;</button>
+    <button class="icon-btn" id="settings-btn" onclick="openSettings()" title="Connection settings" style="display:none;">&#128279;</button>
+    <button class="icon-btn" onclick="authSignOut()" title="Sign out" style="color:var(--text3);">&#8594;</button>
   </div>
 </header>
 
@@ -896,7 +969,167 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 </div>
 
 <script>
-// ── Constants ──────────────────────────────────────────────────
+// ── Firebase Config ────────────────────────────────────────────
+// TODO: Replace with your Firebase project config
+const FB_CONFIG = {
+  apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
+  authDomain: "dashboard-2baac.firebaseapp.com",
+  projectId: "dashboard-2baac",
+  storageBucket: "dashboard-2baac.firebasestorage.app",
+  messagingSenderId: "400090884209",
+  appId: "1:400090884209:web:e820ea655f0b077fce13d0",
+  measurementId: "G-J09TZF9HCT"
+};
+firebase.initializeApp(FB_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ── Current user session ───────────────────────────────────────
+let currentUser   = null;   // Firebase user object
+let currentProfile= null;   // Firestore profile {role, permissions, agentName, allowedAgents, ...}
+
+// ── Auth functions ─────────────────────────────────────────────
+function authShowError(msg){ document.getElementById('auth-error').textContent=msg; document.getElementById('auth-loading').style.display='none'; }
+function authShowLoading(){ document.getElementById('auth-error').textContent=''; document.getElementById('auth-loading').style.display=''; }
+
+async function authGoogleLogin(){
+  authShowLoading();
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch(e){ authShowError(e.message); }
+}
+async function authEmailLogin(){
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  if(!email||!pass){ authShowError('Please enter email and password.'); return; }
+  authShowLoading();
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e){
+    authShowError(e.code==='auth/wrong-password'||e.code==='auth/user-not-found' ? 'Invalid email or password.' : e.message);
+  }
+}
+async function authSignOut(){
+  if(!confirm('Sign out?')) return;
+  await auth.signOut();
+  location.reload();
+}
+
+// ── Load user profile from Firestore ──────────────────────────
+async function loadUserProfile(uid, email){
+  // First try by UID
+  let doc = await db.collection('users').doc(uid).get();
+  if(doc.exists) return {id: uid, ...doc.data()};
+
+  // Not found by UID — check if admin pre-created by email (Google login)
+  const snap = await db.collection('users').where('email','==',email).limit(1).get();
+  if(!snap.empty){
+    const pendingDoc = snap.docs[0];
+    const data = pendingDoc.data();
+    // Migrate: update document key to real UID
+    await db.collection('users').doc(uid).set({...data, uid});
+    if(pendingDoc.id !== uid) await db.collection('users').doc(pendingDoc.id).delete();
+    return {id: uid, ...data};
+  }
+  return null;
+}
+
+// ── Apply permissions to UI ────────────────────────────────────
+function applyPermissions(profile){
+  const role = profile.role || 'agent';
+  const perms = profile.permissions || {};
+
+  // Header
+  document.getElementById('admin-btn').style.display   = role==='admin' ? '' : 'none';
+  document.getElementById('settings-btn').style.display= role==='admin' ? '' : 'none';
+  document.getElementById('user-chip').style.display   = 'flex';
+  document.getElementById('user-name').textContent     = currentUser.displayName || currentUser.email;
+  document.getElementById('user-role-badge').textContent = role.toUpperCase();
+  if(currentUser.photoURL) document.getElementById('user-avatar').src = currentUser.photoURL;
+
+  // Tabs visibility
+  const showDash = role==='admin' || perms.dashboard!==false;
+  const showRec  = role==='admin' || perms.recordings!==false;
+  document.getElementById('tab-dashboard').style.display = showDash ? '' : 'none';
+  document.getElementById('tab-recordings').style.display= showRec  ? '' : 'none';
+
+  // Section visibility inside dashboard
+  const showPlatform = role==='admin' || perms.platform!==false;
+  const showAgents   = role==='admin' || perms.agentSummary!==false;
+  const showOnline   = role==='admin' || perms.onlineStatus!==false;
+  document.querySelectorAll('.platform-section').forEach(el=>el.style.display=showPlatform?'':'none');
+  document.querySelectorAll('.agent-section').forEach(el=>el.style.display=showAgents?'':'none');
+  document.querySelectorAll('.online-sidebar').forEach(el=>el.style.display=showOnline?'':'none');
+
+  // Default tab
+  const firstTab = showDash ? 'dashboard' : showRec ? 'recordings' : null;
+  if(firstTab) switchTab(firstTab);
+}
+
+// ── Filter recordings by role ──────────────────────────────────
+function filterByRole(recs){
+  if(!currentProfile) return recs;
+  const role  = currentProfile.role || 'agent';
+  if(role==='admin' || role==='supervisor'){
+    // Supervisor: filter to allowedAgents if set
+    if(role==='supervisor' && currentProfile.allowedAgents && currentProfile.allowedAgents.length){
+      return recs.filter(r=>{
+        const n=(r.agent_name||r._agentFolder||'').toLowerCase();
+        return currentProfile.allowedAgents.some(a=>a.toLowerCase()===n);
+      });
+    }
+    return recs;
+  }
+  // Agent: only own recordings
+  const myName=(currentProfile.agentName||'').toLowerCase();
+  return recs.filter(r=>(r.agent_name||r._agentFolder||'').toLowerCase()===myName);
+}
+
+// ── Firebase auth state observer ──────────────────────────────
+auth.onAuthStateChanged(async function(user){
+  if(!user){
+    // Not logged in — show auth gate, hide app
+    document.getElementById('auth-gate').style.display='flex';
+    document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='none');
+    return;
+  }
+  // Logged in
+  currentUser = user;
+  const profile = await loadUserProfile(user.uid, user.email);
+  if(!profile){
+    auth.signOut();
+    authShowError('Your account has not been set up yet. Contact your admin.');
+    return;
+  }
+  currentProfile = profile;
+
+  // Hide auth gate, show app
+  document.getElementById('auth-gate').style.display='none';
+  document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='');
+
+  applyPermissions(profile);
+
+  // Load NC credentials from Firestore (admin stored them)
+  const creds = profile.role==='admin'
+    ? null  // admin enters their own via settings
+    : await db.collection('config').doc('nextcloud').get().then(d=>d.exists?d.data():null);
+
+  if(creds && creds.url){
+    NC_URL  = creds.url;
+    NC_USER = creds.user;
+    NC_PASS = atob(creds.pass); // base64 decode
+    NC_DIR  = BASE_PATH;
+    loadAllData();
+  } else if(profile.role==='admin'){
+    // Admin: restore from localStorage or prompt
+    const u=localStorage.getItem('nc_url'),n=localStorage.getItem('nc_user'),p=localStorage.getItem('nc_pass');
+    if(u&&n&&p){ NC_URL=u;NC_USER=n;NC_PASS=p;NC_DIR=BASE_PATH;loadAllData(); }
+    else { openSettings(); }
+  } else {
+    setStatus('Nextcloud not configured. Contact admin.','');
+  }
+});
 const PROXY      = 'https://nc-proxy.mohsin-kuiperz.workers.dev/?url=';
 const BASE_PATH  = '/Customer Support/Call Recordings/WhatsApp Call';
 const CACHE_KEY  = 'wc_recordings_cache_v2';
@@ -1290,7 +1523,9 @@ function applyFilters(){
   const from=document.getElementById('filter-date-from').value;
   const to=document.getElementById('filter-date-to').value;
   const isPhone=/\d{5,}/.test(raw.replace(/[\s+\-()']/g,''));
-  filtered=allRecordings.filter(function(r){
+  // Apply role-based filter first
+  const roleFiltered = filterByRole(allRecordings);
+  filtered=roleFiltered.filter(function(r){
     if(activeAgentFilter&&(r.agent_name||r._agentFolder)!==activeAgentFilter)return false;
     if(type&&r.call_type!==type)return false;
     if(platform&&(r.platform||'')!==platform)return false;
@@ -1618,17 +1853,13 @@ function showToast(msg){const t=document.getElementById('toast');t.textContent=m
 
 // ── Init ───────────────────────────────────────────────────────
 window.onload=function(){
+  // Hide app until auth confirmed
+  document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='none');
   // Restore theme
   const saved=localStorage.getItem('wc_theme');
   if(saved==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('theme-toggle').innerHTML='&#9728;';}
   // Export listeners
   ['export-agent','export-type','export-date-from','export-date-to'].forEach(id=>{document.getElementById(id)?.addEventListener('change',updateExportCount);});
-  // Auto-connect
-  const u=localStorage.getItem('nc_url'),n=localStorage.getItem('nc_user'),p=localStorage.getItem('nc_pass');
-  if(u&&n&&p){
-    document.getElementById('nc-url').value=u;document.getElementById('nc-user').value=n;document.getElementById('nc-pass').value=p;
-    NC_URL=u;NC_USER=n;NC_PASS=p;NC_DIR=BASE_PATH;loadAllData();
-  } else {openSettings();}
 };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video.min.js"></script>
