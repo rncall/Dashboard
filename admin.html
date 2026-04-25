@@ -109,8 +109,15 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 <body>
 
 <!-- Auth Gate -->
-<div id="auth-gate">
-  <div class="auth-box">
+<div id="auth-gate" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;">
+  <!-- Spinner while checking session -->
+  <div id="auth-checking" style="text-align:center;">
+    <div style="width:36px;height:36px;border:3px solid var(--border,#e2e8f0);border-top-color:var(--accent,#2563eb);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px;"></div>
+    <div style="font-size:13px;color:var(--text3,#94a3b8);font-family:'JetBrains Mono',monospace;">Checking session…</div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>
+  <!-- Login box — shown only if no session -->
+  <div id="auth-login-box" class="auth-box" style="display:none;">
     <div style="font-size:22px;font-weight:800;color:var(--accent);margin-bottom:4px;">Admin Panel</div>
     <div style="font-size:13px;color:var(--text3);margin-bottom:24px;">Call Dashboard</div>
     <button onclick="adminGoogleLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-size:14px;font-weight:500;color:#374151;cursor:pointer;margin-bottom:14px;">
@@ -130,8 +137,11 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 <header>
   <div class="logo">Call <span>Dashboard</span> — <span style="color:var(--purple);">Admin</span></div>
   <div class="header-right">
-    <span id="admin-name" style="font-size:12px;color:var(--text3);font-family:var(--mono);"></span>
-    <button class="icon-btn" onclick="toggleAdminTheme()" id="theme-btn">&#9790;</button>
+    <button class="icon-btn" onclick="toggleAdminTheme()" id="theme-btn" title="Toggle theme">&#9790;</button>
+    <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 14px 4px 10px;">
+      <span style="font-size:11px;background:var(--purple-lt);color:var(--purple);padding:1px 7px;border-radius:4px;font-family:var(--mono);letter-spacing:.5px;font-weight:600;">ADMIN</span>
+      <span id="admin-name" style="font-size:12px;color:var(--text2);font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+    </div>
     <button class="btn btn-ghost btn-sm" onclick="window.open('index.html','_blank')">← Dashboard</button>
     <button class="btn btn-danger btn-sm" onclick="adminSignOut()">Sign out</button>
   </div>
@@ -247,18 +257,19 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 <script>
 // ── Firebase Config ───────────────────────
 const firebaseConfig = {
-    apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
-    authDomain: "dashboard-2baac.firebaseapp.com",
-    projectId: "dashboard-2baac",
-    storageBucket: "dashboard-2baac.firebasestorage.app",
-    messagingSenderId: "400090884209",
-    appId: "1:400090884209:web:e820ea655f0b077fce13d0",
-    measurementId: "G-J09TZF9HCT"
-  };
+  apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
+  authDomain: "dashboard-2baac.firebaseapp.com",
+  projectId: "dashboard-2baac",
+  storageBucket: "dashboard-2baac.firebasestorage.app",
+  messagingSenderId: "400090884209",
+  appId: "1:400090884209:web:e820ea655f0b077fce13d0",
+  measurementId: "G-J09TZF9HCT"
+};
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
+firebase.initializeApp(firebaseConfig); 
+
+const auth = firebase.auth();
+const db   = firebase.firestore();
 
 // ── All permission definitions ─────────────────────────────────
 const ALL_PERMS = [
@@ -284,10 +295,17 @@ async function adminEmailLogin(){
 async function adminSignOut(){ await auth.signOut(); location.reload(); }
 
 auth.onAuthStateChanged(async function(user){
-  if(!user){ document.getElementById('auth-gate').style.display='flex'; document.getElementById('app').style.display='none'; return; }
+  if(!user){
+    document.getElementById('auth-checking').style.display = 'none';
+    document.getElementById('auth-login-box').style.display = 'block';
+    document.getElementById('app').style.display='none';
+    return;
+  }
   const doc = await db.collection('users').doc(user.uid).get();
   if(!doc.exists || doc.data().role !== 'admin'){
-    auth.signOut();
+    await auth.signOut();
+    document.getElementById('auth-checking').style.display = 'none';
+    document.getElementById('auth-login-box').style.display = 'block';
     document.getElementById('a-error').textContent='Access denied. Admin only.';
     return;
   }
@@ -436,7 +454,7 @@ async function saveUser(){
       if(pass){
         // Use Admin SDK via Firestore trigger would be ideal, but for client:
         // Create user with secondary app instance trick
-        const secondApp = firebase.initializeApp(FB_CONFIG, 'secondary_'+Date.now());
+        const secondApp = firebase.initializeApp(firebaseConfig, 'secondary_'+Date.now());
         const secondAuth = secondApp.auth();
         const cred = await secondAuth.createUserWithEmailAndPassword(email, pass);
         await cred.user.updateProfile({displayName: name});
