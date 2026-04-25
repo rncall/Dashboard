@@ -1019,18 +1019,18 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 <script>
 // ── Firebase Config ────────────────────────────────────────────
 // TODO: Replace with your Firebase project config
-const FB_CONFIG = {
-  apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
-  authDomain: "dashboard-2baac.firebaseapp.com",
-  projectId: "dashboard-2baac",
-  storageBucket: "dashboard-2baac.firebasestorage.app",
-  messagingSenderId: "400090884209",
-  appId: "1:400090884209:web:e820ea655f0b077fce13d0",
-  measurementId: "G-J09TZF9HCT"
-};
-firebase.initializeApp(FB_CONFIG);
-const auth = firebase.auth();
-const db   = firebase.firestore();
+const firebaseConfig = {
+    apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
+    authDomain: "dashboard-2baac.firebaseapp.com",
+    projectId: "dashboard-2baac",
+    storageBucket: "dashboard-2baac.firebasestorage.app",
+    messagingSenderId: "400090884209",
+    appId: "1:400090884209:web:e820ea655f0b077fce13d0",
+    measurementId: "G-J09TZF9HCT"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
 
 // ── Current user session ───────────────────────────────────────
 let currentUser   = null;   // Firebase user object
