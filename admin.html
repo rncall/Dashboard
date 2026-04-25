@@ -245,17 +245,19 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 <div id="toast"></div>
 
 <script>
-// ── Firebase Config — SAME as index.html ───────────────────────
-  const firebaseConfig = {
-    apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
-    authDomain: "dashboard-2baac.firebaseapp.com",
-    projectId: "dashboard-2baac",
-    storageBucket: "dashboard-2baac.firebasestorage.app",
-    messagingSenderId: "400090884209",
-    appId: "1:400090884209:web:e820ea655f0b077fce13d0",
-    measurementId: "G-J09TZF9HCT"
-  };
-firebase.initializeApp(FB_CONFIG);
+// ── Firebase Config ───────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
+  authDomain: "dashboard-2baac.firebaseapp.com",
+  projectId: "dashboard-2baac",
+  storageBucket: "dashboard-2baac.firebasestorage.app",
+  messagingSenderId: "400090884209",
+  appId: "1:400090884209:web:e820ea655f0b077fce13d0",
+  measurementId: "G-J09TZF9HCT"
+};
+
+firebase.initializeApp(firebaseConfig); 
+
 const auth = firebase.auth();
 const db   = firebase.firestore();
 
