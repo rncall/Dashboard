@@ -5,40 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Call Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video-js.min.css"/>
 <style>
-/* Plyr theme overrides */
-:root {
-  --plyr-color-main: var(--accent, #2563eb);
-  --plyr-audio-controls-background: var(--surface2, #f8fafc);
-  --plyr-audio-control-color: var(--text2, #475569);
-  --plyr-audio-control-color-hover: var(--accent, #2563eb);
-  --plyr-audio-control-background-hover: var(--accent-lt, #eff6ff);
-  --plyr-video-background: #000;
-  --plyr-font-family: 'JetBrains Mono', monospace;
-  --plyr-font-size-base: 12px;
-  --plyr-range-track-height: 4px;
-  --plyr-range-thumb-height: 14px;
-  --plyr-range-thumb-width: 14px;
-  --plyr-control-spacing: 8px;
-  --plyr-tooltip-background: var(--text, #0f172a);
-  --plyr-tooltip-color: var(--surface, #fff);
-  --plyr-badge-background: var(--accent, #2563eb);
+/* Video.js theme overrides */
+.video-js { width: 100% !important; border-radius: 8px; overflow: hidden; margin-bottom: 14px; background: #000; }
+.video-js .vjs-control-bar {
+  background: linear-gradient(transparent, rgba(0,0,0,.75));
+  border-radius: 0 0 8px 8px;
+  font-family: var(--mono);
 }
-[data-theme="dark"] {
-  --plyr-audio-controls-background: #1e293b;
-  --plyr-audio-control-color: #94a3b8;
-  --plyr-audio-control-background-hover: rgba(37,99,235,.15);
-  --plyr-menu-background: #1e293b;
-  --plyr-menu-color: #f1f5f9;
-  --plyr-menu-border-color: #253348;
-  --plyr-tooltip-background: #f1f5f9;
-  --plyr-tooltip-color: #0f172a;
+.video-js .vjs-play-progress,
+.video-js .vjs-volume-level { background: var(--accent, #2563eb); }
+.video-js .vjs-slider { background: rgba(255,255,255,.2); }
+.video-js .vjs-load-progress { background: rgba(255,255,255,.15); }
+.video-js .vjs-big-play-button {
+  border: 2px solid #fff; border-radius: 50%;
+  width: 60px; height: 60px; line-height: 56px;
+  left: 50%; top: 50%; transform: translate(-50%,-50%);
+  background: rgba(0,0,0,.5);
 }
-.plyr { border-radius: 8px; overflow: hidden; margin-bottom: 14px; width: 100%; }
+.video-js:hover .vjs-big-play-button { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); }
+.video-js .vjs-time-control { font-size: 12px; }
+.video-js .vjs-playback-rate .vjs-playback-rate-value { font-size: 12px; line-height: 3; }
+/* Fullscreen — proper full coverage */
+.video-js.vjs-fullscreen { width: 100vw !important; height: 100vh !important; border-radius: 0 !important; position: fixed !important; inset: 0 !important; z-index: 99999 !important; }
+.video-js.vjs-fullscreen video { object-fit: contain !important; }
+/* Audio player stays Plyr */
 .plyr--audio .plyr__controls { border-radius: 8px; border: 1px solid var(--border, #e2e8f0); }
-[data-theme="dark"] .plyr--audio .plyr__controls { border-color: #1e2d40; }
-.plyr--video { max-height: 340px; background: #000; }
+[data-theme="dark"] .plyr--audio .plyr__controls { border-color: #1e2d40; background: #1e293b; }
 </style>
 <style>
 /* ── Theme Variables ── */
@@ -486,16 +480,11 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 /* Media modal */
 #audio-modal { width: 660px; max-width: 94vw; }
 #audio-overlay { z-index: 1500; }
-/* Plyr container fullscreen — controls stay visible */
-.plyr:-webkit-full-screen          { width: 100vw !important; height: 100vh !important; background:#000; border-radius:0 !important; }
-.plyr:-moz-full-screen             { width: 100vw !important; height: 100vh !important; background:#000; border-radius:0 !important; }
-.plyr:fullscreen                   { width: 100vw !important; height: 100vh !important; background:#000; border-radius:0 !important; }
-.plyr:-webkit-full-screen video    { width: 100vw !important; height: 100vh !important; object-fit: contain; }
-.plyr:fullscreen video             { width: 100vw !important; height: 100vh !important; object-fit: contain; }
-/* Fallback fullscreen */
-.plyr--fullscreen-fallback         { z-index: 9999 !important; position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; border-radius: 0 !important; background: #000; }
-.plyr--fullscreen-fallback video   { width: 100% !important; height: 100% !important; object-fit: contain; }
-.plyr--video                       { max-height: 340px; background: #000; }
+/* Video.js fullscreen — must be above everything */
+.video-js.vjs-fullscreen { z-index: 99999 !important; }
+/* Audio Plyr */
+.plyr--audio .plyr__controls { border-radius: 8px; border: 1px solid var(--border, #e2e8f0); }
+[data-theme="dark"] .plyr--audio .plyr__controls { border-color: #1e2d40; background: #1e293b; }
 #audio-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; word-break: break-all; line-height: 1.4; color: var(--text); }
 #audio-modal .meta { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-bottom: 16px; line-height: 1.8; }
 #audio-player { width: 100%; margin-bottom: 14px; border-radius: 6px; accent-color: var(--accent); }
@@ -626,7 +615,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
     <h3 id="audio-title">—</h3>
     <div class="meta" id="audio-meta">—</div>
     <audio id="audio-player" controls preload="none" style="display:none;width:100%;margin-bottom:14px;border-radius:6px;accent-color:var(--accent);"></audio>
-    <video id="video-player" controls preload="none" style="display:none;width:100%;max-height:340px;border-radius:8px;background:#000;margin-bottom:14px;"></video>
+    <video id="video-player" class="video-js vjs-default-skin vjs-big-play-centered" preload="none" style="display:none;width:100%;aspect-ratio:16/9;max-height:360px;border-radius:8px;"></video>
     <div class="modal-actions">
       <a id="audio-dl" class="btn btn-primary btn-sm" download>Download</a>
       <button class="btn btn-ghost btn-sm" onclick="copyAudioLink()">Copy Link</button>
@@ -1395,67 +1384,73 @@ function renderTable(){
 }
 function goPage(p){const rpp=rowsPerPage===Infinity?filtered.length:rowsPerPage;const tot=Math.ceil(filtered.length/rpp);if(p<1||p>tot)return;currentPage=p;renderTable();}
 
-// ── Media Player (Plyr) ────────────────────────────────────────
-let _plyrInstance = null;
+// ── Media Player ───────────────────────────────────────────────
+let _plyrInstance = null;   // audio only
+let _vjsInstance  = null;   // video only
 
 function openMedia(i){
-  const r=filtered[i];
-  const media=getMediaPath(r);
-  currentAudioUrl=media.url;
-  document.getElementById('audio-title').textContent=r.filename||'Recording';
-  const platLabel=r.platform?'<span style="background:var(--accent-lt);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;">'+(r.platform)+'</span> · ':'';
-  document.getElementById('audio-meta').innerHTML='<b>'+(r.agent_name||r._agentFolder)+'</b> · '+(r.caller||'Unknown')+'<br>'+(r.datetime||r.date||'')+' · '+platLabel+'<span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span> · '+(r.duration_formatted||fmtDur(r.duration_seconds)||'—');
+  const r = filtered[i];
+  const media = getMediaPath(r);
+  currentAudioUrl = media.url;
+  document.getElementById('audio-title').textContent = r.filename || 'Recording';
+  const platLabel = r.platform
+    ? '<span style="background:var(--accent-lt);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;">'+r.platform+'</span> · ' : '';
+  document.getElementById('audio-meta').innerHTML =
+    '<b>'+(r.agent_name||r._agentFolder)+'</b> · '+(r.caller||'Unknown')+'<br>'
+    +(r.datetime||r.date||'')+' · '+platLabel
+    +'<span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span> · '
+    +(r.duration_formatted||fmtDur(r.duration_seconds)||'—');
 
-  // Destroy previous Plyr instance cleanly
-  if(_plyrInstance){
-    try{_plyrInstance.destroy();}catch(e){}
-    _plyrInstance=null;
-  }
+  // Destroy previous instances
+  if(_plyrInstance){ try{_plyrInstance.destroy();}catch(e){} _plyrInstance=null; }
+  if(_vjsInstance){  try{_vjsInstance.dispose();}catch(e){}  _vjsInstance=null;  }
 
   const isVideo = media.type === 'video';
   const audioEl = document.getElementById('audio-player');
   const videoEl = document.getElementById('video-player');
 
-  // Reset both elements
-  audioEl.pause(); videoEl.pause();
-  audioEl.removeAttribute('src'); videoEl.removeAttribute('src');
-  audioEl.load(); videoEl.load();
+  audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
 
   if(isVideo){
-    audioEl.style.display='none';
-    videoEl.style.display='block';
-    videoEl.src = media.url;
-    _plyrInstance = new Plyr(videoEl, {
-      controls: ['play','progress','current-time','duration','mute','volume','settings','fullscreen'],
-      settings: ['speed'],
-      speed: {selected:1, options:[0.5,0.75,1,1.25,1.5,2]},
-      keyboard: {focused:true, global:false},
-      tooltips: {controls:true, seek:true},
-      fullscreen: {enabled:true, fallback:true, iosNative:false},
+    audioEl.style.display = 'none';
+    videoEl.style.display = 'block';
+
+    // Init Video.js
+    _vjsInstance = videojs('video-player', {
+      controls: true,
+      preload: 'auto',
+      fluid: false,
+      responsive: false,
+      playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+      controlBar: {
+        children: [
+          'playToggle',
+          'progressControl',
+          'currentTimeDisplay',
+          'timeDivider',
+          'durationDisplay',
+          'volumePanel',
+          'playbackRateMenuButton',
+          'fullscreenToggle',
+        ]
+      }
     });
 
-    _plyrInstance.on('ready', ()=>{
-      const container = _plyrInstance.elements.container; // .plyr wrapper div
+    _vjsInstance.src({ src: media.url, type: 'video/mp4' });
 
-      // Override fullscreen button — fullscreen the Plyr container, not raw video
-      const fsBtn = container.querySelector('[data-plyr="fullscreen"]');
-      if(fsBtn){
-        fsBtn.addEventListener('click', function(e){
-          e.preventDefault(); e.stopPropagation();
-          _toggleFullscreen(container);
-        }, true);
-      }
-
-      // Double-click anywhere on the video wrapper → toggle fullscreen
-      container.addEventListener('dblclick', function(e){
-        // Ignore dblclick on controls bar
-        if(e.target.closest('.plyr__controls')) return;
-        _toggleFullscreen(container);
+    // Double-click to toggle fullscreen
+    _vjsInstance.ready(function(){
+      const el = this.el();
+      el.addEventListener('dblclick', function(e){
+        if(e.target.closest('.vjs-control-bar')) return;
+        if(_vjsInstance.isFullscreen()) _vjsInstance.exitFullscreen();
+        else _vjsInstance.requestFullscreen();
       });
     });
+
   } else {
-    videoEl.style.display='none';
-    audioEl.style.display='block';
+    videoEl.style.display = 'none';
+    audioEl.style.display = 'block';
     audioEl.src = media.url;
     _plyrInstance = new Plyr(audioEl, {
       controls: ['play','progress','current-time','duration','mute','volume','settings'],
@@ -1470,24 +1465,26 @@ function openMedia(i){
   document.getElementById('audio-dl').download = media.fname;
   document.getElementById('audio-overlay').classList.add('show');
 }
-function _toggleFullscreen(el){
-  // el = Plyr container div; fullscreening it keeps Plyr controls visible
-  const target = el || (_plyrInstance && _plyrInstance.elements.container) || document.getElementById('video-player');
-  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-  if(!isFs){
-    const req = target.requestFullscreen || target.webkitRequestFullscreen || target.mozRequestFullScreen || target.msRequestFullscreen;
-    if(req) req.call(target);
-  } else {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-    if(exit) exit.call(document);
-  }
-}
-function openAudio(i){openMedia(i);}
+
+function _toggleFullscreen(el){ /* unused — vjs handles its own fullscreen */ }
+function openAudio(i){ openMedia(i); }
 function closeAudio(){
   document.getElementById('audio-overlay').classList.remove('show');
-  if(_plyrInstance){try{_plyrInstance.stop();_plyrInstance.destroy();}catch(e){}_plyrInstance=null;}
-  const a=document.getElementById('audio-player');const v=document.getElementById('video-player');
-  a.src='';v.src='';
+  if(_plyrInstance){ try{_plyrInstance.stop();_plyrInstance.destroy();}catch(e){} _plyrInstance=null; }
+  if(_vjsInstance){
+    try{ if(!_vjsInstance.paused()) _vjsInstance.pause(); _vjsInstance.dispose(); }catch(e){}
+    _vjsInstance=null;
+    // Video.js dispose removes the element — recreate it for next open
+    const modal = document.getElementById('audio-modal');
+    const actionsDiv = modal.querySelector('.modal-actions');
+    const v = document.createElement('video');
+    v.id='video-player'; v.className='video-js vjs-default-skin vjs-big-play-centered';
+    v.setAttribute('preload','none');
+    v.style.cssText='display:none;width:100%;aspect-ratio:16/9;max-height:360px;border-radius:8px;';
+    modal.insertBefore(v, actionsDiv);
+  }
+  const a = document.getElementById('audio-player');
+  if(a){ a.src=''; }
 }
 function copyAudioLink(){navigator.clipboard.writeText(currentAudioUrl).then(()=>showToast('Link copied!'));}
 function copyLink(i){const r=filtered[i];const media=getMediaPath(r);navigator.clipboard.writeText(media.url).then(()=>showToast('Link copied!'));}
@@ -1634,6 +1631,7 @@ window.onload=function(){
   } else {openSettings();}
 };
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.js"></script>
 </body>
 </html>
