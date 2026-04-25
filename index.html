@@ -1019,7 +1019,9 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 <script>
 // ── Firebase Config ────────────────────────────────────────────
 // TODO: Replace with your Firebase project config
-const firebaseConfig = {
+<script>
+  // ── Firebase Config ────────────────────────────────────────────
+  const FB_CONFIG = {
     apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
     authDomain: "dashboard-2baac.firebaseapp.com",
     projectId: "dashboard-2baac",
@@ -1029,8 +1031,13 @@ const firebaseConfig = {
     measurementId: "G-J09TZF9HCT"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
+  // Initialize Firebase (একবার চেক করে নেওয়া ভালো আগে থেকে আছে কি না)
+  if (!firebase.apps.length) {
+      firebase.initializeApp(FB_CONFIG);
+  }
+
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
 
 // ── Current user session ───────────────────────────────────────
 let currentUser   = null;   // Firebase user object
