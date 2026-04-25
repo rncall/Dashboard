@@ -31,8 +31,17 @@
 .video-js:hover .vjs-big-play-button { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); }
 .video-js .vjs-time-control { font-size: 12px; }
 .video-js .vjs-playback-rate .vjs-playback-rate-value { font-size: 12px; line-height: 3; }
-/* Fullscreen — proper full coverage */
-.video-js.vjs-fullscreen { width: 100vw !important; height: 100vh !important; border-radius: 0 !important; position: fixed !important; inset: 0 !important; z-index: 99999 !important; }
+/* Fullscreen — escape modal completely */
+.video-js.vjs-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  z-index: 999999 !important;
+  margin: 0 !important;
+}
 .video-js.vjs-fullscreen video { object-fit: contain !important; }
 /* Audio player stays Plyr */
 .plyr--audio .plyr__controls { border-radius: 8px; border: 1px solid var(--border, #e2e8f0); }
@@ -481,11 +490,19 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .connected-badge { background: var(--green-bg); border: 1px solid var(--green-b); color: var(--green); padding: 5px 13px; border-radius: 20px; font-family: var(--mono); font-size: 12px; }
 
 /* Media modal */
-/* Media modal */
-#audio-modal { width: 660px; max-width: 94vw; }
+#audio-modal { width: 660px; max-width: 94vw; overflow: visible; }
 #audio-overlay { z-index: 1500; }
-/* Video.js fullscreen — must be above everything */
-.video-js.vjs-fullscreen { z-index: 99999 !important; }
+/* Video.js fullscreen — must escape modal and cover everything */
+.video-js.vjs-fullscreen {
+  z-index: 999999 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  max-height: none !important;
+}
+.video-js.vjs-fullscreen video { object-fit: contain !important; }
 /* Audio Plyr */
 .plyr--audio .plyr__controls { border-radius: 8px; border: 1px solid var(--border, #e2e8f0); }
 [data-theme="dark"] .plyr--audio .plyr__controls { border-color: #1e2d40; background: #1e293b; }
@@ -563,7 +580,15 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
   display:flex;align-items:center;justify-content:center;
   font-family:'Inter',sans-serif;
 ">
-  <div style="
+  <!-- Loading spinner shown while Firebase checks session -->
+  <div id="auth-checking" style="text-align:center;">
+    <div style="width:36px;height:36px;border:3px solid var(--border,#e2e8f0);border-top-color:var(--accent,#2563eb);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px;"></div>
+    <div style="font-size:13px;color:var(--text3,#94a3b8);font-family:'JetBrains Mono',monospace;">Checking session…</div>
+  </div>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+  <!-- Login box — hidden until we know there's no session -->
+  <div id="auth-login-box" style="display:none;
     background:var(--surface,#fff);border:1px solid var(--border,#e2e8f0);
     border-radius:16px;padding:40px 36px;width:380px;max-width:92vw;
     box-shadow:0 20px 60px rgba(0,0,0,.1);text-align:center;
@@ -614,7 +639,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
       margin-top:12px;font-size:12px;color:#ef4444;min-height:18px;
     "></div>
     <div id="auth-loading" style="display:none;margin-top:12px;font-size:12px;color:#94a3b8;">Signing in...</div>
-  </div>
+  </div><!-- /auth-login-box -->
 </div>
 <!-- ══ END AUTH GATE ══════════════════════════════════════════ -->
 
@@ -629,16 +654,38 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
   </div>
   <div class="header-right">
     <div id="status-bar">NOT CONNECTED</div>
-    <div id="user-chip" style="display:none;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 4px;cursor:default;">
-      <img id="user-avatar" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'">
-      <span id="user-name" style="font-size:12px;font-weight:600;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-      <span id="user-role-badge" style="font-size:10px;font-family:var(--mono);letter-spacing:.5px;background:var(--accent-lt);color:var(--accent);padding:1px 6px;border-radius:4px;"></span>
-    </div>
-    <button class="icon-btn" onclick="loadAllData()" title="Refresh data">&#8635;</button>
     <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#9790;</button>
-    <button class="icon-btn" id="admin-btn" style="display:none;" onclick="window.open('admin.html','_blank')" title="Admin Panel">&#9881;</button>
-    <button class="icon-btn" id="settings-btn" onclick="openSettings()" title="Connection settings" style="display:none;">&#128279;</button>
-    <button class="icon-btn" onclick="authSignOut()" title="Sign out" style="color:var(--text3);">&#8594;</button>
+    <!-- User menu -->
+    <div id="user-menu-wrap" style="display:none;position:relative;">
+      <button id="user-menu-btn" onclick="toggleUserMenu()" style="
+        display:flex;align-items:center;gap:7px;background:var(--surface2);
+        border:1px solid var(--border);border-radius:20px;padding:4px 10px 4px 4px;
+        cursor:pointer;font-family:var(--sans);transition:all .15s;
+      " onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <img id="user-avatar" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'">
+        <span id="user-name" style="font-size:12px;font-weight:600;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <span id="user-role-badge" style="font-size:10px;font-family:var(--mono);background:var(--accent-lt);color:var(--accent);padding:1px 6px;border-radius:4px;letter-spacing:.5px;"></span>
+        <span style="font-size:10px;color:var(--text3);">▾</span>
+      </button>
+      <div id="user-menu-dropdown" style="
+        display:none;position:absolute;top:calc(100%+6px);right:0;
+        background:var(--surface);border:1px solid var(--border);border-radius:10px;
+        box-shadow:var(--shadow-md);min-width:180px;z-index:500;overflow:hidden;
+      ">
+        <button onclick="loadAllData();toggleUserMenu()" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--text2);font-family:var(--sans);display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+          &#8635; Refresh Data
+        </button>
+        <button id="admin-btn" style="display:none;width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--text2);font-family:var(--sans);display:flex;align-items:center;gap:8px;" onclick="window.open('admin.html','_blank');toggleUserMenu()" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+          &#9881; Admin Panel
+        </button>
+        <button id="settings-btn" style="display:none;width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--text2);font-family:var(--sans);display:flex;align-items:center;gap:8px;" onclick="openSettings();toggleUserMenu()" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+          &#128279; Connection
+        </button>
+        <button onclick="authSignOut()" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--red);font-family:var(--sans);display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--red-bg)'" onmouseout="this.style.background='none'">
+          &#8594; Sign Out
+        </button>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -688,6 +735,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
     <h3 id="audio-title">—</h3>
     <div class="meta" id="audio-meta">—</div>
     <audio id="audio-player" controls preload="none" style="display:none;width:100%;margin-bottom:14px;border-radius:6px;accent-color:var(--accent);"></audio>
+    <div id="audio-container" style="display:none;margin-bottom:14px;"><audio id="audio-player" preload="none" style="width:100%;"></audio></div>
     <video id="video-player" class="video-js vjs-default-skin vjs-big-play-centered" preload="none" style="display:none;width:100%;aspect-ratio:16/9;max-height:360px;border-radius:8px;"></video>
     <div class="modal-actions">
       <a id="audio-dl" class="btn btn-primary btn-sm" download>Download</a>
@@ -1040,13 +1088,17 @@ function applyPermissions(profile){
   const role = profile.role || 'agent';
   const perms = profile.permissions || {};
 
-  // Header
-  document.getElementById('admin-btn').style.display   = role==='admin' ? '' : 'none';
-  document.getElementById('settings-btn').style.display= role==='admin' ? '' : 'none';
-  document.getElementById('user-chip').style.display   = 'flex';
+  // Show user menu
+  document.getElementById('user-menu-wrap').style.display = 'block';
   document.getElementById('user-name').textContent     = currentUser.displayName || currentUser.email;
   document.getElementById('user-role-badge').textContent = role.toUpperCase();
   if(currentUser.photoURL) document.getElementById('user-avatar').src = currentUser.photoURL;
+
+  // Admin-only items in dropdown
+  const adminBtn    = document.getElementById('admin-btn');
+  const settingsBtn = document.getElementById('settings-btn');
+  if(adminBtn)    adminBtn.style.display    = role==='admin' ? 'flex' : 'none';
+  if(settingsBtn) settingsBtn.style.display = role==='admin' ? 'flex' : 'none';
 
   // Tabs visibility
   const showDash = role==='admin' || perms.dashboard!==false;
@@ -1089,22 +1141,31 @@ function filterByRole(recs){
 // ── Firebase auth state observer ──────────────────────────────
 auth.onAuthStateChanged(async function(user){
   if(!user){
-    // Not logged in — show auth gate, hide app
+    // No session — hide spinner, show login form
+    const checking = document.getElementById('auth-checking');
+    const loginBox = document.getElementById('auth-login-box');
+    if(checking) checking.style.display = 'none';
+    if(loginBox) loginBox.style.display = 'block';
     document.getElementById('auth-gate').style.display='flex';
     document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='none');
     return;
   }
-  // Logged in
+  // Logged in — hide auth gate immediately (no login flash)
+  document.getElementById('auth-gate').style.display='none';
   currentUser = user;
   const profile = await loadUserProfile(user.uid, user.email);
   if(!profile){
     auth.signOut();
+    document.getElementById('auth-checking').style.display='none';
+    document.getElementById('auth-login-box').style.display='block';
+    document.getElementById('auth-gate').style.display='flex';
+    document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='none');
     authShowError('Your account has not been set up yet. Contact your admin.');
     return;
   }
   currentProfile = profile;
 
-  // Hide auth gate, show app
+  // Show app
   document.getElementById('auth-gate').style.display='none';
   document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='');
 
@@ -1158,6 +1219,19 @@ function toggleTheme() {
   document.getElementById('theme-toggle').innerHTML = isDark ? '&#9790;' : '&#9728;';
   localStorage.setItem('wc_theme', isDark ? 'light' : 'dark');
 }
+
+// ── User menu dropdown ─────────────────────────────────────────
+function toggleUserMenu(){
+  const dd = document.getElementById('user-menu-dropdown');
+  dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+}
+document.addEventListener('click', function(e){
+  const wrap = document.getElementById('user-menu-wrap');
+  if(wrap && !wrap.contains(e.target)){
+    const dd = document.getElementById('user-menu-dropdown');
+    if(dd) dd.style.display = 'none';
+  }
+});
 
 // ── Tab switching ──────────────────────────────────────────────
 function switchTab(t) {
@@ -1641,13 +1715,11 @@ function openMedia(i){
   if(_vjsInstance){  try{_vjsInstance.dispose();}catch(e){}  _vjsInstance=null;  }
 
   const isVideo = media.type === 'video';
-  const audioEl = document.getElementById('audio-player');
   const videoEl = document.getElementById('video-player');
-
-  audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
+  const audioContainer = document.getElementById('audio-container');
 
   if(isVideo){
-    audioEl.style.display = 'none';
+    audioContainer.style.display = 'none';
     videoEl.style.display = 'block';
 
     // Init Video.js
@@ -1684,10 +1756,14 @@ function openMedia(i){
     });
 
   } else {
+    // Audio — Plyr destroys & replaces the element, so always recreate it fresh
+    const audioContainer = document.getElementById('audio-container');
+    audioContainer.innerHTML = '<audio id="audio-player" preload="none" style="width:100%;"></audio>';
+    const freshAudio = document.getElementById('audio-player');
     videoEl.style.display = 'none';
-    audioEl.style.display = 'block';
-    audioEl.src = media.url;
-    _plyrInstance = new Plyr(audioEl, {
+    audioContainer.style.display = 'block';
+    freshAudio.src = media.url;
+    _plyrInstance = new Plyr(freshAudio, {
       controls: ['play','progress','current-time','duration','mute','volume','settings'],
       settings: ['speed'],
       speed: {selected:1, options:[0.5,0.75,1,1.25,1.5,2]},
@@ -1718,8 +1794,9 @@ function closeAudio(){
     v.style.cssText='display:none;width:100%;aspect-ratio:16/9;max-height:360px;border-radius:8px;';
     modal.insertBefore(v, actionsDiv);
   }
-  const a = document.getElementById('audio-player');
-  if(a){ a.src=''; }
+  // Reset audio container
+  const audioContainer = document.getElementById('audio-container');
+  if(audioContainer){ audioContainer.style.display='none'; audioContainer.innerHTML='<audio id="audio-player" preload="none" style="width:100%;"></audio>'; }
 }
 function copyAudioLink(){navigator.clipboard.writeText(currentAudioUrl).then(()=>showToast('Link copied!'));}
 function copyLink(i){const r=filtered[i];const media=getMediaPath(r);navigator.clipboard.writeText(media.url).then(()=>showToast('Link copied!'));}
@@ -1828,24 +1905,25 @@ function updateInsights(){
   const videoPct=tot?Math.round(hasVideo/tot*100):0;
 
   const row=(color,label,val,sub='')=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
-      <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-left:2px;"></div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:10px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;">${label}</div>
-        <div style="font-size:12px;color:var(--text);font-weight:600;margin-top:1px;">${val}${sub?'<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:5px;">'+sub+'</span>':''}</div>
+    <div style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <div style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+        <div style="font-size:9px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;">${label}</div>
       </div>
+      <div style="font-size:13px;color:var(--text);font-weight:700;line-height:1.2;">${val}</div>
+      ${sub?'<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+sub+'</div>':''}
     </div>`;
 
   document.getElementById('insights-content').innerHTML=`
-    <div style="margin:-2px 0;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
       ${row('var(--accent)','Busiest Day',busiestDay,byday[days.indexOf(busiestDay)]+' calls')}
       ${row('var(--accent)','Peak Hour',busiestHourStr,byhour[busiestHour]+' calls')}
-      ${row('var(--text3)','Quietest Hour (biz)',quietestHour+':00–'+(quietestHour+1)+':00',bizHours[quietestHour-8]+' calls')}
-      ${row('var(--yellow)','Top Agent',topAgent[0],topAgentPct+'% · '+topAgent[1]+' calls')}
+      ${row('var(--text3)','Quietest (biz)',quietestHour+':00–'+(quietestHour+1)+':00',bizHours[quietestHour-8]+' calls')}
+      ${row('var(--yellow)','Top Agent',topAgent[0].split(' ')[0],topAgentPct+'% · '+topAgent[1]+' calls')}
       ${row('var(--green)','Top Platform',topPlat[0],topPlatPct+'%')}
-      ${row('var(--purple)','Avg Call Duration',fmtDur(avgSec))}
-      ${row('var(--accent2)','Video Recordings',hasVideo+' / '+tot,videoPct+'%')}
-      ${row('var(--text3)','Weekday Daily Avg','~'+weekdayAvg+' calls','vs '+weekend+' weekend total')}
+      ${row('var(--purple)','Avg Duration',fmtDur(avgSec))}
+      ${row('var(--accent2)','Video Recs',hasVideo+' / '+tot,videoPct+'%')}
+      ${row('var(--text3)','Weekday Avg','~'+weekdayAvg+'/day',weekend+' on weekends')}
     </div>`;
 }
 
@@ -1853,7 +1931,7 @@ function showToast(msg){const t=document.getElementById('toast');t.textContent=m
 
 // ── Init ───────────────────────────────────────────────────────
 window.onload=function(){
-  // Hide app until auth confirmed
+  // Hide app until auth confirmed — auth gate shows spinner by default
   document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='none');
   // Restore theme
   const saved=localStorage.getItem('wc_theme');
