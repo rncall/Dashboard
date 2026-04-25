@@ -907,8 +907,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 // ── Constants ──────────────────────────────────────────────────
 const PROXY      = 'https://nc-proxy.mohsin-kuiperz.workers.dev/?url=';
 const BASE_PATH  = '/Customer Support/Call Recordings/WhatsApp Call';
-const CACHE_KEY  = 'wc_recordings_cache';
-const CACHE_TS   = 'wc_recordings_ts';
+const CACHE_KEY  = 'wc_recordings_cache_v2';
+const CACHE_TS   = 'wc_recordings_ts_v2';
 const CACHE_TTL  = 5 * 60 * 1000;
 const STATUS_URL = 'https://rncall.github.io/status.json';
 const ONLINE_MS  = 3 * 60 * 1000;
@@ -1040,20 +1040,21 @@ async function loadAgent(y,m,d,agent){
   (await Promise.allSettled(entries.filter(e=>!e.isDir&&e.name.endsWith('.json')).map(f=>loadFile(path,f.name,agent,f.size)))).forEach(r=>{
     if(r.status==='fulfilled'&&r.value){
       const rec=r.value;
-      // Build expected mp4 filename: replace .wav extension with .mp4
-      // Also handle case where JSON format field says "mp4" explicitly
-      const baseName=(rec.filename||'').replace(/\.wav$/i,'').replace(/\.json$/i,'');
-      const mp4Name=baseName+'.mp4';
-      if(mp4Files.has(mp4Name)){
+      const fn=rec.filename||'';
+      // 1. Standard: swap .wav → .mp4 in filename
+      const mp4Name=fn.replace(/\.wav$/i,'.mp4');
+      if(mp4Name&&mp4Files.has(mp4Name)){
         rec._mp4Path=path+'/'+mp4Name;
-      } else if(rec.format==='mp4'||rec.mode==='screen_audio'){
-        // JSON says it's mp4 but maybe filename already has .mp4 in Set
-        const tryMp4=(rec.filename||'').replace(/\.(wav|json)$/i,'.mp4');
-        if(mp4Files.has(tryMp4)) rec._mp4Path=path+'/'+tryMp4;
+      }
+      // 2. If JSON said format=mp4/screen_audio, try _expectedMp4 filename
+      else if(rec._expectedMp4){
+        const expName=rec._expectedMp4.split('/').pop();
+        if(mp4Files.has(expName)) rec._mp4Path=path+'/'+expName;
         else {
-          // Try exact mp4 match without extension swap
-          const directMp4=entries.find(e=>!e.isDir&&e.name.endsWith('.mp4')&&e.name.replace('.mp4','')===baseName);
-          if(directMp4) rec._mp4Path=path+'/'+directMp4.name;
+          // 3. Fuzzy: find any mp4 in same folder with same base name
+          const base=fn.replace(/\.(wav|json|mp4)$/i,'').toLowerCase();
+          const match=[...mp4Files].find(m=>m.replace('.mp4','').toLowerCase()===base);
+          if(match) rec._mp4Path=path+'/'+match;
         }
       }
       recs.push(rec);
@@ -1061,11 +1062,28 @@ async function loadAgent(y,m,d,agent){
   });
   return recs;
 }
-async function loadFile(dir,file,agent,fileSize){const p=dir+'/'+file;const r=await fetch(PROXY+encodeURIComponent(davUrl(p)),{headers:{'Authorization':authHdr()}});if(!r.ok)return null;const meta=await r.json();const base=p.replace('.json','');meta._wavPath=base+'.wav';meta._mp4Path=null;meta._agentFolder=agent;if(!meta.file_size_kb&&fileSize)meta.file_size_kb=Math.round(fileSize/1024);
-// Detect platform from metadata or folder structure, then normalize
-if(!meta.platform){const lc=(file+' '+dir).toLowerCase();if(lc.includes('zoiper'))meta.platform='ZoiPer5';else if(lc.includes('teamviewer'))meta.platform='TeamViewer';else if(lc.includes('anydesk'))meta.platform='AnyDesk';else if(lc.includes('ultraviewer'))meta.platform='UltraViewer';else if(lc.includes('meet'))meta.platform='GoogleMeet';else if(lc.includes('jitsi'))meta.platform='Jitsi';else if(lc.includes('zoom'))meta.platform='Zoom';else if(lc.includes('teams'))meta.platform='Teams';else if(lc.includes('whatsapp'))meta.platform='WhatsApp';}
-meta.platform=normalizePlatform(meta.platform);
-return meta;}
+async function loadFile(dir,file,agent,fileSize){
+  const p=dir+'/'+file;
+  const r=await fetch(PROXY+encodeURIComponent(davUrl(p)),{headers:{'Authorization':authHdr()}});
+  if(!r.ok)return null;
+  const meta=await r.json();
+  const base=p.replace(/\.json$/,'');
+  meta._wavPath=base+'.wav';
+  meta._mp4Path=null;
+  meta._agentFolder=agent;
+  // If JSON explicitly says format is mp4 or mode is screen_audio, set expected mp4 path
+  if(meta.format==='mp4'||meta.mode==='screen_audio'){
+    // Build mp4 path from filename field (replace .wav extension)
+    const fn=meta.filename||'';
+    const mp4fn=fn.replace(/\.wav$/i,'.mp4');
+    meta._expectedMp4=dir+'/'+mp4fn;
+  }
+  if(!meta.file_size_kb&&fileSize)meta.file_size_kb=Math.round(fileSize/1024);
+  // Detect platform from metadata or folder structure, then normalize
+  if(!meta.platform){const lc=(file+' '+dir).toLowerCase();if(lc.includes('zoiper'))meta.platform='ZoiPer5';else if(lc.includes('teamviewer'))meta.platform='TeamViewer';else if(lc.includes('anydesk'))meta.platform='AnyDesk';else if(lc.includes('ultraviewer'))meta.platform='UltraViewer';else if(lc.includes('meet'))meta.platform='GoogleMeet';else if(lc.includes('jitsi'))meta.platform='Jitsi';else if(lc.includes('zoom'))meta.platform='Zoom';else if(lc.includes('teams'))meta.platform='Teams';else if(lc.includes('whatsapp'))meta.platform='WhatsApp';}
+  meta.platform=normalizePlatform(meta.platform);
+  return meta;
+}
 
 async function checkMediaType(path,agent,file){// Check if mp4 exists for this recording
 const mp4path=path+'/'+file.replace('.json','.mp4');try{const r=await fetch(PROXY+encodeURIComponent(davUrl(mp4path)),{method:'HEAD',headers:{'Authorization':authHdr()}});if(r.ok)return mp4path;}catch(e){}return null;}
@@ -1418,14 +1436,12 @@ function openMedia(i){
       if(fsBtn){
         fsBtn.addEventListener('click', function(e){
           e.preventDefault(); e.stopPropagation();
-          const v = document.getElementById('video-player');
-          if(!document.fullscreenElement){
-            (v.requestFullscreen||v.webkitRequestFullscreen||v.mozRequestFullScreen||v.msRequestFullscreen).call(v);
-          } else {
-            (document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen).call(document);
-          }
+          _toggleFullscreen();
         }, true);
       }
+      // Double-click on video to toggle fullscreen
+      const v = document.getElementById('video-player');
+      v.addEventListener('dblclick', _toggleFullscreen);
     });
   } else {
     videoEl.style.display='none';
@@ -1443,6 +1459,16 @@ function openMedia(i){
   document.getElementById('audio-dl').href = media.url;
   document.getElementById('audio-dl').download = media.fname;
   document.getElementById('audio-overlay').classList.add('show');
+}
+function _toggleFullscreen(){
+  const v = document.getElementById('video-player');
+  if(!document.fullscreenElement&&!document.webkitFullscreenElement&&!document.mozFullScreenElement){
+    const req = v.requestFullscreen||v.webkitRequestFullscreen||v.mozRequestFullScreen||v.msRequestFullscreen;
+    if(req) req.call(v);
+  } else {
+    const exit = document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;
+    if(exit) exit.call(document);
+  }
 }
 function openAudio(i){openMedia(i);}
 function closeAudio(){
