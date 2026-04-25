@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — Call Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f1f5f9; --surface:#fff; --surface2:#f8fafc; --border:#e2e8f0; --border2:#cbd5e1;
+  --text:#0f172a; --text2:#475569; --text3:#94a3b8;
+  --accent:#2563eb; --accent-lt:#eff6ff; --accent2:#0ea5e9;
+  --green:#16a34a; --green-lt:#f0fdf4;
+  --red:#dc2626; --red-lt:#fef2f2;
+  --yellow:#d97706; --yellow-lt:#fffbeb;
+  --purple:#7c3aed; --purple-lt:#f5f3ff;
+  --radius:10px; --radius-sm:6px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 16px rgba(0,0,0,.10);
+  --mono:'JetBrains Mono',monospace;
+}
+[data-theme="dark"]{
+  --bg:#0d1117; --surface:#161b22; --surface2:#1c2333; --border:#21262d; --border2:#30363d;
+  --text:#e6edf3; --text2:#8b949e; --text3:#484f58;
+  --accent-lt:rgba(37,99,235,.15);
+  --green-lt:rgba(22,163,74,.12); --red-lt:rgba(220,38,38,.12);
+  --yellow-lt:rgba(217,119,6,.12); --purple-lt:rgba(124,58,237,.12);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{font-size:16px;font-weight:800;color:var(--accent);}
+.logo span{color:var(--text);}
+.header-right{display:flex;align-items:center;gap:10px;}
+.page-body{max-width:1100px;margin:0 auto;padding:28px 20px;}
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--text3);margin-bottom:24px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);}
+.section-title{font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:14px;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .15s;}
+.btn-primary{background:var(--accent);color:#fff;} .btn-primary:hover{background:#1d4ed8;}
+.btn-danger{background:var(--red-lt);color:var(--red);border:1px solid var(--red);} .btn-danger:hover{background:var(--red);color:#fff;}
+.btn-ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);} .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-success{background:var(--green-lt);color:var(--green);border:1px solid var(--green);}  .btn-success:hover{background:var(--green);color:#fff;}
+
+/* Form */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.field label{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;}
+.field input,.field select{padding:8px 11px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .15s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* User table */
+.user-table{width:100%;border-collapse:collapse;font-size:13px;}
+.user-table th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3);border-bottom:2px solid var(--border);background:var(--surface2);}
+.user-table td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.user-table tr:last-child td{border-bottom:none;}
+.user-table tr:hover td{background:var(--surface2);}
+.role-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-family:var(--mono);letter-spacing:.5px;font-weight:600;}
+.role-admin{background:var(--purple-lt);color:var(--purple);}
+.role-supervisor{background:var(--yellow-lt);color:var(--yellow);}
+.role-agent{background:var(--accent-lt);color:var(--accent);}
+
+/* Permission toggles */
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px;}
+.perm-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .15s;}
+.perm-toggle:hover{border-color:var(--accent);}
+.perm-toggle input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;}
+.perm-toggle span{font-size:12px;color:var(--text2);font-weight:500;}
+.perm-toggle.checked{background:var(--accent-lt);border-color:var(--accent);}
+.perm-toggle.checked span{color:var(--accent);}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--surface);border-radius:var(--radius);padding:28px;width:560px;max-width:94vw;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:4px;}
+.modal-sub{font-size:12px;color:var(--text3);margin-bottom:20px;}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);padding:4px 8px;border-radius:4px;}
+.modal-close:hover{background:var(--surface2);}
+
+/* NC config card */
+.nc-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--radius-sm);background:var(--green-lt);border:1px solid var(--green);color:var(--green);font-size:13px;font-weight:600;margin-bottom:14px;}
+
+/* Auth gate */
+#auth-gate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;width:360px;max-width:92vw;text-align:center;box-shadow:var(--shadow-md);}
+
+/* Tabs */
+.tab-row{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:22px;}
+.admin-tab{padding:9px 16px;font-size:13px;font-weight:600;color:var(--text3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;border-radius:4px 4px 0 0;transition:all .15s;}
+.admin-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.admin-tab:hover{color:var(--text2);}
+.tab-panel{display:none;} .tab-panel.active{display:block;}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .25s;z-index:9999;pointer-events:none;}
+
+.icon-btn{background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:16px;color:var(--text2);}
+.icon-btn:hover{background:var(--surface2);}
+</style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="auth-gate">
+  <div class="auth-box">
+    <div style="font-size:22px;font-weight:800;color:var(--accent);margin-bottom:4px;">Admin Panel</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:24px;">Call Dashboard</div>
+    <button onclick="adminGoogleLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:11px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;font-size:14px;font-weight:500;color:#374151;cursor:pointer;margin-bottom:14px;">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 20-9 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16.1 18.9 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.6 26.8 36 24 36c-5.3 0-9.6-2.9-11.3-7l-6.6 4.8C9.7 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.6 4.6-4.8 6l6.2 5.2C40.5 36.1 44 30.5 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
+      Continue with Google
+    </button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;"><div style="flex:1;height:1px;background:#e2e8f0;"></div><span style="font-size:12px;color:#94a3b8;">or</span><div style="flex:1;height:1px;background:#e2e8f0;"></div></div>
+    <input id="a-email" type="email" placeholder="Email" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box;font-family:'Inter',sans-serif;">
+    <input id="a-pass" type="password" placeholder="Password" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;margin-bottom:12px;box-sizing:border-box;font-family:'Inter',sans-serif;" onkeydown="if(event.key==='Enter')adminEmailLogin()">
+    <button onclick="adminEmailLogin()" style="width:100%;padding:10px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">Sign In</button>
+    <div id="a-error" style="margin-top:10px;font-size:12px;color:#ef4444;min-height:16px;"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none;">
+<header>
+  <div class="logo">Call <span>Dashboard</span> — <span style="color:var(--purple);">Admin</span></div>
+  <div class="header-right">
+    <span id="admin-name" style="font-size:12px;color:var(--text3);font-family:var(--mono);"></span>
+    <button class="icon-btn" onclick="toggleAdminTheme()" id="theme-btn">&#9790;</button>
+    <button class="btn btn-ghost btn-sm" onclick="window.open('index.html','_blank')">← Dashboard</button>
+    <button class="btn btn-danger btn-sm" onclick="adminSignOut()">Sign out</button>
+  </div>
+</header>
+
+<div class="page-body">
+  <div class="page-title">Admin Panel</div>
+  <div class="page-sub">Manage users, roles, permissions, and Nextcloud connection</div>
+
+  <div class="tab-row">
+    <button class="admin-tab active" onclick="switchAdminTab('users')">Users</button>
+    <button class="admin-tab" onclick="switchAdminTab('nextcloud')">Nextcloud Config</button>
+  </div>
+
+  <!-- ── USERS TAB ── -->
+  <div id="tab-users" class="tab-panel active">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="section-title" style="margin:0;">All Users</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddUser()">+ Add User</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="user-table" id="users-table">
+        <thead><tr>
+          <th>Name / Email</th>
+          <th>Role</th>
+          <th>Agent Name</th>
+          <th>Allowed Agents</th>
+          <th>Permissions</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3);">Loading users...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── NEXTCLOUD TAB ── -->
+  <div id="tab-nextcloud" class="tab-panel">
+    <div class="card" style="max-width:520px;">
+      <div class="section-title">Nextcloud Credentials</div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:18px;">These credentials are encrypted and stored in Firestore. All non-admin users connect automatically using these.</p>
+      <div id="nc-saved-info" style="display:none;" class="nc-status">✓ Credentials saved. All users will auto-connect.</div>
+      <div class="field"><label>Server URL</label><input id="nc-url" type="text" placeholder="https://cloud.example.com"></div>
+      <div class="form-row">
+        <div class="field"><label>Username</label><input id="nc-user" type="text" placeholder="admin"></div>
+        <div class="field"><label>Password / App Token</label><input id="nc-pass" type="password" placeholder="app token"></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveNCConfig()">Save &amp; Encrypt</button>
+        <button class="btn btn-ghost" onclick="testNCConfig()">Test Connection</button>
+      </div>
+      <div id="nc-test-result" style="margin-top:12px;font-size:13px;min-height:18px;"></div>
+    </div>
+  </div>
+</div><!-- end page-body -->
+</div><!-- end app -->
+
+<!-- Add/Edit User Modal -->
+<div id="user-modal" class="modal-overlay" onclick="if(event.target.id==='user-modal')closeUserModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeUserModal()">&#x2715;</button>
+    <div class="modal-title" id="modal-title">Add User</div>
+    <div class="modal-sub">Fill in the details. For Google login users, email must match their Google account.</div>
+
+    <div class="form-row">
+      <div class="field"><label>Display Name</label><input id="u-name" type="text" placeholder="Tanisha Ahmed"></div>
+      <div class="field"><label>Email</label><input id="u-email" type="email" placeholder="tanisha@company.com"></div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Password (Email login only)</label>
+        <input id="u-pass" type="password" placeholder="Leave blank if Google login">
+      </div>
+      <div class="field">
+        <label>Role</label>
+        <select id="u-role" onchange="onRoleChange()">
+          <option value="agent">Agent</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Agent name (for agents) -->
+    <div id="agent-name-row" class="field">
+      <label>Agent Name <span style="color:var(--text3);font-weight:400;">(must match name in recordings)</span></label>
+      <input id="u-agent-name" type="text" placeholder="e.g. Tanisha">
+    </div>
+
+    <!-- Allowed agents (for supervisors) -->
+    <div id="allowed-agents-row" class="field" style="display:none;">
+      <label>Allowed Agents <span style="color:var(--text3);font-weight:400;">(comma-separated names)</span></label>
+      <input id="u-allowed-agents" type="text" placeholder="e.g. Tanisha, Mohsin, Shuvro">
+    </div>
+
+    <!-- Permissions -->
+    <div id="permissions-section" style="display:none;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Permissions</div>
+      <div class="perm-grid" id="perm-grid"></div>
+    </div>
+
+    <div style="margin-top:20px;display:flex;gap:8px;">
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveUser()">Save User</button>
+      <button class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
+    </div>
+    <div id="modal-error" style="margin-top:10px;font-size:12px;color:var(--red);min-height:16px;"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Firebase Config — SAME as index.html ───────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyBTExOBdMTr9NyEYKZ9qdxWQxfRU4RUALw",
+    authDomain: "dashboard-2baac.firebaseapp.com",
+    projectId: "dashboard-2baac",
+    storageBucket: "dashboard-2baac.firebasestorage.app",
+    messagingSenderId: "400090884209",
+    appId: "1:400090884209:web:e820ea655f0b077fce13d0",
+    measurementId: "G-J09TZF9HCT"
+  };
+firebase.initializeApp(FB_CONFIG);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ── All permission definitions ─────────────────────────────────
+const ALL_PERMS = [
+  { key:'dashboard',    label:'Dashboard Tab' },
+  { key:'recordings',   label:'Recordings Tab' },
+  { key:'platform',     label:'Platform Summary' },
+  { key:'agentSummary', label:'Agent Summary' },
+  { key:'onlineStatus', label:'Online Status' },
+  { key:'heatmap',      label:'Heatmap & Insights' },
+  { key:'export',       label:'Export Data' },
+];
+
+// ── Auth ───────────────────────────────────────────────────────
+async function adminGoogleLogin(){
+  try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch(e){ document.getElementById('a-error').textContent=e.message; }
+}
+async function adminEmailLogin(){
+  const e=document.getElementById('a-email').value.trim(), p=document.getElementById('a-pass').value;
+  try{ await auth.signInWithEmailAndPassword(e,p); }
+  catch(e){ document.getElementById('a-error').textContent='Invalid credentials.'; }
+}
+async function adminSignOut(){ await auth.signOut(); location.reload(); }
+
+auth.onAuthStateChanged(async function(user){
+  if(!user){ document.getElementById('auth-gate').style.display='flex'; document.getElementById('app').style.display='none'; return; }
+  const doc = await db.collection('users').doc(user.uid).get();
+  if(!doc.exists || doc.data().role !== 'admin'){
+    auth.signOut();
+    document.getElementById('a-error').textContent='Access denied. Admin only.';
+    return;
+  }
+  document.getElementById('auth-gate').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('admin-name').textContent = user.displayName || user.email;
+  loadUsers();
+  loadNCConfig();
+});
+
+// ── Theme ──────────────────────────────────────────────────────
+function toggleAdminTheme(){
+  const html=document.documentElement;
+  const isDark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('theme-btn').innerHTML=isDark?'&#9790;':'&#9728;';
+  localStorage.setItem('wc_theme',isDark?'light':'dark');
+}
+window.addEventListener('load',()=>{
+  if(localStorage.getItem('wc_theme')==='dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('theme-btn').innerHTML='&#9728;'; }
+});
+
+// ── Tabs ───────────────────────────────────────────────────────
+function switchAdminTab(name){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.admin-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Load users ─────────────────────────────────────────────────
+async function loadUsers(){
+  const snap = await db.collection('users').orderBy('role').get();
+  const tbody = document.getElementById('users-tbody');
+  if(snap.empty){ tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3);">No users yet. Add your first user.</td></tr>'; return; }
+  tbody.innerHTML = snap.docs.map(doc=>{
+    const d = doc.data();
+    const perms = d.permissions || {};
+    const permCount = ALL_PERMS.filter(p=>perms[p.key]!==false).length;
+    const allowedStr = d.allowedAgents?.length ? d.allowedAgents.join(', ') : '—';
+    return `<tr>
+      <td><div style="font-weight:600;">${d.displayName||'—'}</div><div style="font-size:11px;color:var(--text3);font-family:var(--mono);">${d.email||'—'}</div></td>
+      <td><span class="role-badge role-${d.role||'agent'}">${(d.role||'agent').toUpperCase()}</span></td>
+      <td style="font-family:var(--mono);font-size:12px;">${d.agentName||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${allowedStr}</td>
+      <td><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">${permCount}/${ALL_PERMS.length} on</span></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="openEditUser('${doc.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="deleteUser('${doc.id}','${d.displayName||d.email}')">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Add/Edit User Modal ────────────────────────────────────────
+let editingUid = null;
+
+function openAddUser(){
+  editingUid = null;
+  document.getElementById('modal-title').textContent = 'Add User';
+  document.getElementById('modal-save-btn').textContent = 'Create User';
+  document.getElementById('u-name').value='';
+  document.getElementById('u-email').value='';
+  document.getElementById('u-pass').value='';
+  document.getElementById('u-role').value='agent';
+  document.getElementById('u-agent-name').value='';
+  document.getElementById('u-allowed-agents').value='';
+  document.getElementById('modal-error').textContent='';
+  buildPermGrid({});
+  onRoleChange();
+  document.getElementById('user-modal').classList.add('show');
+}
+
+async function openEditUser(uid){
+  editingUid = uid;
+  const doc = await db.collection('users').doc(uid).get();
+  const d = doc.data();
+  document.getElementById('modal-title').textContent = 'Edit User';
+  document.getElementById('modal-save-btn').textContent = 'Save Changes';
+  document.getElementById('u-name').value = d.displayName||'';
+  document.getElementById('u-email').value = d.email||'';
+  document.getElementById('u-pass').value = '';
+  document.getElementById('u-role').value = d.role||'agent';
+  document.getElementById('u-agent-name').value = d.agentName||'';
+  document.getElementById('u-allowed-agents').value = (d.allowedAgents||[]).join(', ');
+  document.getElementById('modal-error').textContent='';
+  buildPermGrid(d.permissions||{});
+  onRoleChange();
+  document.getElementById('user-modal').classList.add('show');
+}
+
+function closeUserModal(){ document.getElementById('user-modal').classList.remove('show'); }
+
+function onRoleChange(){
+  const role = document.getElementById('u-role').value;
+  document.getElementById('agent-name-row').style.display   = role==='agent' ? '' : 'none';
+  document.getElementById('allowed-agents-row').style.display = role==='supervisor' ? '' : 'none';
+  document.getElementById('permissions-section').style.display = role !== 'admin' ? '' : 'none';
+}
+
+function buildPermGrid(currentPerms){
+  const grid = document.getElementById('perm-grid');
+  grid.innerHTML = ALL_PERMS.map(p=>{
+    const checked = currentPerms[p.key] !== false; // default on
+    return `<label class="perm-toggle ${checked?'checked':''}" id="pt-${p.key}">
+      <input type="checkbox" id="perm-${p.key}" ${checked?'checked':''} onchange="togglePermLabel('${p.key}')">
+      <span>${p.label}</span>
+    </label>`;
+  }).join('');
+}
+
+function togglePermLabel(key){
+  const checked = document.getElementById('perm-'+key).checked;
+  document.getElementById('pt-'+key).className='perm-toggle'+(checked?' checked':'');
+}
+
+function getPermissions(){
+  const perms={};
+  ALL_PERMS.forEach(p=>{ perms[p.key]=document.getElementById('perm-'+p.key)?.checked ?? true; });
+  return perms;
+}
+
+async function saveUser(){
+  const name  = document.getElementById('u-name').value.trim();
+  const email = document.getElementById('u-email').value.trim();
+  const pass  = document.getElementById('u-pass').value;
+  const role  = document.getElementById('u-role').value;
+  const agentName = document.getElementById('u-agent-name').value.trim();
+  const allowedRaw= document.getElementById('u-allowed-agents').value;
+  const allowedAgents = allowedRaw.split(',').map(s=>s.trim()).filter(Boolean);
+  const permissions = role==='admin' ? {} : getPermissions();
+  const errEl = document.getElementById('modal-error');
+  errEl.textContent='';
+
+  if(!name||!email){ errEl.textContent='Name and email are required.'; return; }
+
+  try{
+    if(editingUid){
+      // Update existing
+      const data = {displayName:name, email, role, agentName, allowedAgents, permissions, updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection('users').doc(editingUid).update(data);
+      showToast('User updated.');
+    } else {
+      // Create Firebase Auth user (if password provided)
+      let uid;
+      if(pass){
+        // Use Admin SDK via Firestore trigger would be ideal, but for client:
+        // Create user with secondary app instance trick
+        const secondApp = firebase.initializeApp(FB_CONFIG, 'secondary_'+Date.now());
+        const secondAuth = secondApp.auth();
+        const cred = await secondAuth.createUserWithEmailAndPassword(email, pass);
+        await cred.user.updateProfile({displayName: name});
+        uid = cred.user.uid;
+        await secondAuth.signOut();
+        secondApp.delete();
+      } else {
+        // Google-login user: we don't have their UID yet, use email as key temporarily
+        // They'll be upserted on first login via onAuthStateChanged
+        uid = 'pending_'+email.replace(/[^a-z0-9]/gi,'_');
+      }
+      const data = {uid, displayName:name, email, role, agentName, allowedAgents, permissions, createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection('users').doc(uid).set(data);
+      showToast('User created.');
+    }
+    closeUserModal();
+    loadUsers();
+  } catch(e){
+    errEl.textContent = e.message;
+  }
+}
+
+async function deleteUser(uid, name){
+  if(!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+  await db.collection('users').doc(uid).delete();
+  showToast('User deleted.');
+  loadUsers();
+}
+
+// ── Nextcloud Config ───────────────────────────────────────────
+async function loadNCConfig(){
+  const doc = await db.collection('config').doc('nextcloud').get();
+  if(doc.exists){
+    const d = doc.data();
+    document.getElementById('nc-url').value  = d.url||'';
+    document.getElementById('nc-user').value = d.user||'';
+    document.getElementById('nc-saved-info').style.display='flex';
+  }
+}
+
+async function saveNCConfig(){
+  const url  = document.getElementById('nc-url').value.trim().replace(/\/$/,'');
+  const user = document.getElementById('nc-user').value.trim();
+  const pass = document.getElementById('nc-pass').value;
+  if(!url||!user||!pass){ showToast('Fill all fields.'); return; }
+  await db.collection('config').doc('nextcloud').set({
+    url, user,
+    pass: btoa(pass), // base64 — simple obfuscation
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  document.getElementById('nc-saved-info').style.display='flex';
+  document.getElementById('nc-pass').value='';
+  showToast('Nextcloud credentials saved.');
+}
+
+async function testNCConfig(){
+  const url  = document.getElementById('nc-url').value.trim().replace(/\/$/,'');
+  const user = document.getElementById('nc-user').value.trim();
+  const pass = document.getElementById('nc-pass').value || '';
+  const res  = document.getElementById('nc-test-result');
+  res.textContent='Testing...'; res.style.color='var(--text3)';
+  try{
+    const PROXY='https://nc-proxy.mohsin-kuiperz.workers.dev/?url=';
+    const davUrl=url+'/remote.php/dav/files/'+user+'/';
+    const r=await fetch(PROXY+encodeURIComponent(davUrl),{
+      method:'PROPFIND',
+      headers:{'Authorization':'Basic '+btoa(user+':'+pass),'Depth':'0','Content-Type':'application/xml'},
+      body:'<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/></d:prop></d:propfind>'
+    });
+    if(r.ok||r.status===207){ res.textContent='✓ Connection successful!'; res.style.color='var(--green)'; }
+    else { res.textContent='✗ Failed: HTTP '+r.status; res.style.color='var(--red)'; }
+  } catch(e){ res.textContent='✗ Error: '+e.message; res.style.color='var(--red)'; }
+}
+
+// ── Toast ──────────────────────────────────────────────────────
+function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity='0',2400); }
+</script>
+</body>
+</html>
