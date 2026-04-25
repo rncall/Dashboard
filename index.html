@@ -486,13 +486,16 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 /* Media modal */
 #audio-modal { width: 660px; max-width: 94vw; }
 #audio-overlay { z-index: 1500; }
-/* Native video fullscreen styles */
-#video-player:-webkit-full-screen { width: 100vw !important; height: 100vh !important; object-fit: contain; background: #000; }
-#video-player:-moz-full-screen    { width: 100vw !important; height: 100vh !important; object-fit: contain; background: #000; }
-#video-player:-ms-fullscreen      { width: 100vw !important; height: 100vh !important; object-fit: contain; background: #000; }
-#video-player:fullscreen           { width: 100vw !important; height: 100vh !important; object-fit: contain; background: #000; }
-.plyr--fullscreen-fallback { z-index: 9999 !important; position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; max-height: none !important; border-radius: 0 !important; background: #000; }
-.plyr--video { max-height: 340px; background: #000; }
+/* Plyr container fullscreen — controls stay visible */
+.plyr:-webkit-full-screen          { width: 100vw !important; height: 100vh !important; background:#000; border-radius:0 !important; }
+.plyr:-moz-full-screen             { width: 100vw !important; height: 100vh !important; background:#000; border-radius:0 !important; }
+.plyr:fullscreen                   { width: 100vw !important; height: 100vh !important; background:#000; border-radius:0 !important; }
+.plyr:-webkit-full-screen video    { width: 100vw !important; height: 100vh !important; object-fit: contain; }
+.plyr:fullscreen video             { width: 100vw !important; height: 100vh !important; object-fit: contain; }
+/* Fallback fullscreen */
+.plyr--fullscreen-fallback         { z-index: 9999 !important; position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; border-radius: 0 !important; background: #000; }
+.plyr--fullscreen-fallback video   { width: 100% !important; height: 100% !important; object-fit: contain; }
+.plyr--video                       { max-height: 340px; background: #000; }
 #audio-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; word-break: break-all; line-height: 1.4; color: var(--text); }
 #audio-modal .meta { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-bottom: 16px; line-height: 1.8; }
 #audio-player { width: 100%; margin-bottom: 14px; border-radius: 6px; accent-color: var(--accent); }
@@ -1430,18 +1433,25 @@ function openMedia(i){
       tooltips: {controls:true, seek:true},
       fullscreen: {enabled:true, fallback:true, iosNative:false},
     });
-    // Override fullscreen button to use native requestFullscreen on raw video element
+
     _plyrInstance.on('ready', ()=>{
-      const fsBtn = _plyrInstance.elements.container.querySelector('[data-plyr="fullscreen"]');
+      const container = _plyrInstance.elements.container; // .plyr wrapper div
+
+      // Override fullscreen button — fullscreen the Plyr container, not raw video
+      const fsBtn = container.querySelector('[data-plyr="fullscreen"]');
       if(fsBtn){
         fsBtn.addEventListener('click', function(e){
           e.preventDefault(); e.stopPropagation();
-          _toggleFullscreen();
+          _toggleFullscreen(container);
         }, true);
       }
-      // Double-click on video to toggle fullscreen
-      const v = document.getElementById('video-player');
-      v.addEventListener('dblclick', _toggleFullscreen);
+
+      // Double-click anywhere on the video wrapper → toggle fullscreen
+      container.addEventListener('dblclick', function(e){
+        // Ignore dblclick on controls bar
+        if(e.target.closest('.plyr__controls')) return;
+        _toggleFullscreen(container);
+      });
     });
   } else {
     videoEl.style.display='none';
@@ -1460,13 +1470,15 @@ function openMedia(i){
   document.getElementById('audio-dl').download = media.fname;
   document.getElementById('audio-overlay').classList.add('show');
 }
-function _toggleFullscreen(){
-  const v = document.getElementById('video-player');
-  if(!document.fullscreenElement&&!document.webkitFullscreenElement&&!document.mozFullScreenElement){
-    const req = v.requestFullscreen||v.webkitRequestFullscreen||v.mozRequestFullScreen||v.msRequestFullscreen;
-    if(req) req.call(v);
+function _toggleFullscreen(el){
+  // el = Plyr container div; fullscreening it keeps Plyr controls visible
+  const target = el || (_plyrInstance && _plyrInstance.elements.container) || document.getElementById('video-player');
+  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+  if(!isFs){
+    const req = target.requestFullscreen || target.webkitRequestFullscreen || target.mozRequestFullScreen || target.msRequestFullscreen;
+    if(req) req.call(target);
   } else {
-    const exit = document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
     if(exit) exit.call(document);
   }
 }
