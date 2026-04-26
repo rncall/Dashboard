@@ -255,7 +255,7 @@ header {
 .h-label { flex: 1; font-family: var(--mono); font-size: 8px; color: var(--text3); text-align: center; }
 
 /* Heatmap — fully responsive, fills container */
-.hm-wrap { width: 100%; overflow: hidden; }
+.hm-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
 .hm-table { width: 100%; border-collapse: separate; border-spacing: 3px; table-layout: fixed; }
 .hm-day-th { font-family: var(--mono); font-size: 10px; color: var(--text3); text-align: right; padding-right: 6px; white-space: nowrap; width: 30px; vertical-align: middle; }
 .hm-hour-th { font-family: var(--mono); font-size: 9px; color: var(--text3); text-align: center; overflow: hidden; }
@@ -265,7 +265,7 @@ header {
 
 /* ── Dashboard layout ── */
 .dash-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: stretch; }
-.dash-main { min-width: 0; overflow: hidden; }
+.dash-main { min-width: 0; }
 .status-sidebar { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 110px; }
 .status-card { padding: 16px 18px; display: flex; flex-direction: column; flex: 1; }
 .status-card-title { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); font-family: var(--mono); margin-bottom: 3px; }
@@ -549,8 +549,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
   .tab-btn { padding: 10px 14px 9px; font-size: 13px; }
   .header-right { gap: 5px; }
   .analytics-row { gap: 10px; grid-template-columns: 1fr !important; }
-  .chart-card { padding: 14px 12px; overflow: hidden; max-width: 100%; box-sizing: border-box; }
-  .hm-wrap { overflow: hidden; max-width: 100%; }
+  .chart-card { padding: 14px 12px; max-width: 100%; box-sizing: border-box; }
+  .hm-wrap { max-width: 100%; }
   .hm-table { border-spacing: 2px; table-layout: fixed; width: 100%; }
   .hm-day-th { font-size: 7px; padding-right: 2px; width: 20px; }
   .hm-hour-th { font-size: 6px; padding: 0; }
