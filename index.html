@@ -260,16 +260,14 @@ header {
 .hm-day-th { font-family: var(--mono); font-size: 10px; color: var(--text3); text-align: right; padding-right: 6px; white-space: nowrap; width: 30px; vertical-align: middle; }
 .hm-hour-th { font-family: var(--mono); font-size: 9px; color: var(--text3); text-align: center; }
 .hm-cell { border-radius: 3px; background: var(--hm-empty); cursor: default; position: relative; border: 1px solid var(--border); transition: transform .1s; }
-.hm-cell:hover { transform: scale(1.4); z-index: 5; border-color: var(--accent); }
-.hm-cell:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100%+5px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 3px 9px; border-radius: 4px; font-family: var(--mono); font-size: 10px; white-space: nowrap; z-index: 10; pointer-events: none; }
+.hm-cell:hover { transform: scale(1.35); z-index: 5; border-color: var(--accent); }
+.hm-cell:hover::after { content: attr(data-tip); position: fixed; background: var(--text); color: var(--surface); padding: 3px 9px; border-radius: 4px; font-family: var(--mono); font-size: 10px; white-space: nowrap; z-index: 9999; pointer-events: none; transform: translate(-50%, -130%); }
 
 /* ── Dashboard layout ── */
-.dash-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
+.dash-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: stretch; }
 .dash-main { min-width: 0; }
-
-/* ── Agent Status Sidebar ── */
-.status-sidebar { display: flex; flex-direction: column; gap: 14px; }
-.status-card { padding: 16px 18px; display: flex; flex-direction: column; max-height: calc(100vh - 140px); }
+.status-sidebar { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 110px; }
+.status-card { padding: 16px 18px; display: flex; flex-direction: column; flex: 1; }
 .status-card-title { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); font-family: var(--mono); margin-bottom: 3px; }
 .status-refresh-lbl { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-bottom: 12px; }
 .agent-status-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
@@ -570,7 +568,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .today-val { font-size: 22px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
 .today-lbl { font-size: 10px; color: var(--text3); letter-spacing: .8px; text-transform: uppercase; font-family: var(--mono); margin-top: 3px; }
 /* Leaderboard */
-.leaderboard-list { display: flex; flex-direction: column; gap: 6px; max-height: 168px; overflow-y: auto; }
+.leaderboard-list { display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; }
 .leaderboard-list::-webkit-scrollbar { width: 3px; }
 .leaderboard-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 .lb-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--surface2); border-radius: var(--radius-sm); border: 1px solid var(--border); }
@@ -915,6 +913,41 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
           <div class="status-refresh-lbl" id="status-refresh-lbl">Refreshes every 2 min</div>
           <div class="agent-status-list" id="agent-status-list">
             <div style="font-family:var(--mono);font-size:12px;color:var(--text3);text-align:center;padding:16px 0;">Loading...</div>
+          </div>
+        </div>
+        <!-- Quick Stats card -->
+        <div class="card" style="padding:16px 18px;">
+          <div class="status-card-title" style="margin-bottom:12px;">Quick Stats</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);font-family:var(--mono);">Today</span>
+              <span style="font-size:14px;font-weight:700;color:var(--accent);font-family:var(--mono);" id="qs-today">—</span>
+            </div>
+            <div style="height:1px;background:var(--border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);font-family:var(--mono);">This Week</span>
+              <span style="font-size:14px;font-weight:700;color:var(--green);font-family:var(--mono);" id="qs-week">—</span>
+            </div>
+            <div style="height:1px;background:var(--border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);font-family:var(--mono);">This Month</span>
+              <span style="font-size:14px;font-weight:700;color:var(--purple);font-family:var(--mono);" id="qs-month">—</span>
+            </div>
+            <div style="height:1px;background:var(--border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);font-family:var(--mono);">Avg/Day</span>
+              <span style="font-size:14px;font-weight:700;color:var(--yellow);font-family:var(--mono);" id="qs-avg">—</span>
+            </div>
+            <div style="height:1px;background:var(--border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);font-family:var(--mono);">Online Now</span>
+              <span style="font-size:14px;font-weight:700;color:var(--green);font-family:var(--mono);" id="qs-online">—</span>
+            </div>
+            <div style="height:1px;background:var(--border);"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:var(--text3);font-family:var(--mono);">Video Recs</span>
+              <span style="font-size:14px;font-weight:700;color:var(--accent2);font-family:var(--mono);" id="qs-video">—</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1510,6 +1543,7 @@ function finishLoad() {
   populateAgentFilter(); applyFilters();
   updateInsights(); updateTodaySummary();
   updateDurationDistribution(); updateLeaderboard();
+  updateQuickStats();
   startOnlineMonitor();
   document.getElementById('badge-filtered').textContent = allRecordings.length;
 }
@@ -1748,7 +1782,7 @@ function renderAgentStatus(){
   const lbl=document.getElementById('status-refresh-lbl');
   if(lbl)lbl.textContent='Last checked: '+new Date().toLocaleTimeString();
 }
-async function startOnlineMonitor(){await fetchAgentStatus();renderAgentStatus();if(onlineTimer)clearInterval(onlineTimer);onlineTimer=setInterval(async function(){await fetchAgentStatus();renderAgentStatus();},2*60*1000);}
+async function startOnlineMonitor(){await fetchAgentStatus();renderAgentStatus();updateQuickStats();if(onlineTimer)clearInterval(onlineTimer);onlineTimer=setInterval(async function(){await fetchAgentStatus();renderAgentStatus();updateQuickStats();},2*60*1000);}
 
 // ── Filters & Table ────────────────────────────────────────────
 function populateAgentFilter(){
@@ -2053,6 +2087,36 @@ function updateTodaySummary(){
   // Active agents today
   const agents=new Set(todayRecs.map(r=>r.agent_name||r._agentFolder||'Unknown'));
   document.getElementById('td-agents').textContent=agents.size||'0';
+}
+
+// ── Quick Stats (sidebar) ───────────────────────────────────────
+function updateQuickStats(){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const today=iso(now);
+  // Week start (Monday)
+  const weekStart=new Date(now);weekStart.setDate(now.getDate()-((now.getDay()+6)%7));
+  const weekStartStr=iso(weekStart);
+  // Month start
+  const monthStart=iso(new Date(now.getFullYear(),now.getMonth(),1));
+
+  const todayCount=allRecordings.filter(r=>r.date===today).length;
+  const weekCount=allRecordings.filter(r=>r.date>=weekStartStr&&r.date<=today).length;
+  const monthCount=allRecordings.filter(r=>r.date>=monthStart&&r.date<=today).length;
+  // Days elapsed this month
+  const daysElapsed=now.getDate();
+  const avgPerDay=daysElapsed>0?Math.round(monthCount/daysElapsed):0;
+  const videoCount=allRecordings.filter(r=>r._mp4Path).length;
+  const onlineCount=_agentStatus.filter(a=>a.online).length;
+
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  set('qs-today',todayCount);
+  set('qs-week',weekCount);
+  set('qs-month',monthCount);
+  set('qs-avg',avgPerDay+'/day');
+  set('qs-online',onlineCount+' agents');
+  set('qs-video',videoCount);
 }
 
 // ── Duration Distribution ───────────────────────────────────────
