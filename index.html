@@ -1703,7 +1703,40 @@ function filterByAgent(name){
 
 // ── Online Monitor ─────────────────────────────────────────────
 function timeSince(ts){const d=Math.floor((Date.now()-ts)/1000);if(d<60)return d+'s ago';if(d<3600)return Math.floor(d/60)+'m ago';if(d<86400)return Math.floor(d/3600)+'h ago';return Math.floor(d/86400)+'d ago';}
-async function fetchAgentStatus(){try{const r=await fetch(STATUS_URL+'?_='+Date.now());if(!r.ok)return;const data=await r.json();const now=Date.now();_agentStatus=Object.entries(data).map(function(e){const id=e[0],info=e[1];const ts=new Date(info.last_seen.replace(' ','T')).getTime();return{id,name:info.agent_name||id,ts,online:(now-ts)<ONLINE_MS};}).sort((a,b)=>b.ts-a.ts);}catch(e){}}
+async function fetchAgentStatus(){
+  try{
+    const r=await fetch(STATUS_URL+'?_='+Date.now());
+    if(!r.ok)return;
+    const data=await r.json();
+    const now=Date.now();
+    _agentStatus=Object.entries(data).map(function(e){
+      const id=e[0],info=e[1];
+      // Parse last_seen as local time (status.json uses Bangladesh local time, not UTC)
+      // "2025-01-15 14:30:00" → treat as local, not UTC
+      const raw=info.last_seen||'';
+      let ts;
+      if(raw.includes('T')){
+        // ISO format with T — check if has timezone offset
+        ts=new Date(raw).getTime();
+      } else {
+        // "YYYY-MM-DD HH:MM:SS" format — replace space with T, add no offset = local time
+        ts=new Date(raw.replace(' ','T')).getTime();
+        // If browser parsed as UTC (difference > 30min vs expected), adjust
+        // We detect this by checking if the parsed time seems in the future or too far past
+        // More reliable: parse manually as local
+        const parts=raw.split(/[- :]/);
+        if(parts.length>=6){
+          const local=new Date(
+            parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]),
+            parseInt(parts[3]),parseInt(parts[4]),parseInt(parts[5])
+          );
+          ts=local.getTime();
+        }
+      }
+      return{id,name:info.agent_name||id,ts,online:(now-ts)<ONLINE_MS};
+    }).sort((a,b)=>b.ts-a.ts);
+  }catch(e){}
+}
 function renderAgentStatus(){
   ['agent-status-list','agent-status-list-2'].forEach(function(lid){
     const el=document.getElementById(lid);if(!el)return;
