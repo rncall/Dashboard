@@ -1711,28 +1711,10 @@ async function fetchAgentStatus(){
     const now=Date.now();
     _agentStatus=Object.entries(data).map(function(e){
       const id=e[0],info=e[1];
-      // Parse last_seen as local time (status.json uses Bangladesh local time, not UTC)
-      // "2025-01-15 14:30:00" → treat as local, not UTC
-      const raw=info.last_seen||'';
-      let ts;
-      if(raw.includes('T')){
-        // ISO format with T — check if has timezone offset
-        ts=new Date(raw).getTime();
-      } else {
-        // "YYYY-MM-DD HH:MM:SS" format — replace space with T, add no offset = local time
-        ts=new Date(raw.replace(' ','T')).getTime();
-        // If browser parsed as UTC (difference > 30min vs expected), adjust
-        // We detect this by checking if the parsed time seems in the future or too far past
-        // More reliable: parse manually as local
-        const parts=raw.split(/[- :]/);
-        if(parts.length>=6){
-          const local=new Date(
-            parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]),
-            parseInt(parts[3]),parseInt(parts[4]),parseInt(parts[5])
-          );
-          ts=local.getTime();
-        }
-      }
+      // last_seen is Bangladesh time (UTC+6) stored as "YYYY-MM-DD HH:MM:SS"
+      // Parse as UTC+6 explicitly so any browser timezone gives correct result
+      const raw=(info.last_seen||'').replace(' ','T');
+      const ts=new Date(raw+'+06:00').getTime();
       return{id,name:info.agent_name||id,ts,online:(now-ts)<ONLINE_MS};
     }).sort((a,b)=>b.ts-a.ts);
   }catch(e){}
