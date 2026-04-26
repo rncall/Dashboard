@@ -1752,31 +1752,19 @@ async function fetchAgentStatus(){
     const data=await r.json();
     const now=Date.now();
 
-    // Parse all timestamps as plain local (no timezone suffix)
-    // "YYYY-MM-DD HH:MM:SS" → browser treats as local time
-    const entries=Object.entries(data).map(function(e){
-      const id=e[0],info=e[1];
-      const raw=(info.last_seen||'').replace(' ','T');
-      // Try plain parse first (local time)
-      let ts=new Date(raw).getTime();
-      return{id,name:info.agent_name||id,ts};
-    });
-
-    // Find the most recent timestamp
-    const maxTs=Math.max(...entries.map(e=>e.ts));
-    const diffMs=now-maxTs;
-
-    // If diff is negative or > 2 hours, timestamps are in wrong timezone
-    // Auto-correct: round diff to nearest hour offset and subtract it
-    let offsetMs=0;
-    if(diffMs<0||diffMs>2*3600*1000){
-      // Round to nearest hour
-      offsetMs=Math.round(diffMs/(3600*1000))*3600*1000;
+    // Parse "YYYY-MM-DD HH:MM:SS" as LOCAL time (not UTC)
+    // Split manually so browser doesn't treat it as UTC
+    function parseLocalTs(str){
+      if(!str)return 0;
+      const p=str.split(/[- :]/);
+      // new Date(year, month-1, day, hour, min, sec) → local time
+      return new Date(+p[0],+p[1]-1,+p[2],+p[3]||0,+p[4]||0,+p[5]||0).getTime();
     }
 
-    _agentStatus=entries.map(function(e){
-      const correctedTs=e.ts+offsetMs;
-      return{id:e.id,name:e.name,ts:correctedTs,online:(now-correctedTs)<ONLINE_MS};
+    _agentStatus=Object.entries(data).map(function(e){
+      const id=e[0],info=e[1];
+      const ts=parseLocalTs(info.last_seen||'');
+      return{id,name:info.agent_name||id,ts,online:(now-ts)<ONLINE_MS};
     }).sort((a,b)=>b.ts-a.ts);
 
   }catch(e){}
