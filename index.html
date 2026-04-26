@@ -3,49 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Call Dashboard</title>
+<title>Monitor Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video-js.min.css"/>
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
-/* Video.js theme overrides */
-.video-js { width: 100% !important; border-radius: 8px; overflow: hidden; margin-bottom: 14px; background: #000; }
-.video-js .vjs-control-bar {
-  background: linear-gradient(transparent, rgba(0,0,0,.75));
-  border-radius: 0 0 8px 8px;
-  font-family: var(--mono);
+/* Native video/audio player */
+.native-video {
+  width: 100%; border-radius: 8px; margin-bottom: 14px;
+  background: #000; display: none; aspect-ratio: 16/9;
+  max-height: 360px; cursor: pointer; outline: none;
 }
-.video-js .vjs-play-progress,
-.video-js .vjs-volume-level { background: var(--accent, #2563eb); }
-.video-js .vjs-slider { background: rgba(255,255,255,.2); }
-.video-js .vjs-load-progress { background: rgba(255,255,255,.15); }
-.video-js .vjs-big-play-button {
-  border: 2px solid #fff; border-radius: 50%;
-  width: 60px; height: 60px; line-height: 56px;
-  left: 50%; top: 50%; transform: translate(-50%,-50%);
-  background: rgba(0,0,0,.5);
+.native-audio {
+  width: 100%; margin-bottom: 14px; border-radius: 6px;
+  accent-color: var(--accent, #2563eb); display: none;
 }
-.video-js:hover .vjs-big-play-button { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); }
-.video-js .vjs-time-control { font-size: 12px; }
-.video-js .vjs-playback-rate .vjs-playback-rate-value { font-size: 12px; line-height: 3; }
-/* Fullscreen — escape modal completely */
-.video-js.vjs-fullscreen {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  max-height: none !important;
-  border-radius: 0 !important;
-  z-index: 999999 !important;
-  margin: 0 !important;
-}
-.video-js.vjs-fullscreen video { object-fit: contain !important; }
-/* Audio player stays Plyr */
-.plyr--audio .plyr__controls { border-radius: 8px; border: 1px solid var(--border, #e2e8f0); }
-[data-theme="dark"] .plyr--audio .plyr__controls { border-color: #1e2d40; background: #1e293b; }
+.native-video::-webkit-media-controls { border-radius: 0 0 8px 8px; }
 </style>
 <style>
 /* ── Theme Variables ── */
@@ -64,18 +39,18 @@
   --donut-track:#e2e8f0;
 }
 [data-theme="dark"] {
-  --bg:         #0f172a;
-  --surface:    #1e293b;
-  --surface2:   #162032;
-  --border:     #1e2d40;
-  --border2:    #253348;
-  --text:       #f1f5f9;
-  --text2:      #94a3b8;
-  --text3:      #475569;
-  --shadow:     0 1px 3px rgba(0,0,0,.3), 0 1px 8px rgba(0,0,0,.2);
-  --shadow-md:  0 4px 20px rgba(0,0,0,.4);
-  --hm-empty:   #1e293b;
-  --donut-track:#253348;
+  --bg:         #1a1f2e;
+  --surface:    #242b3d;
+  --surface2:   #1e2435;
+  --border:     #2e3a52;
+  --border2:    #374460;
+  --text:       #e8edf5;
+  --text2:      #a8b5cc;
+  --text3:      #6b7a96;
+  --shadow:     0 1px 3px rgba(0,0,0,.25), 0 1px 8px rgba(0,0,0,.15);
+  --shadow-md:  0 4px 20px rgba(0,0,0,.35);
+  --hm-empty:   #2e3a52;
+  --donut-track:#374460;
 }
 
 /* ── Shared Colors ── */
@@ -102,15 +77,15 @@
 }
 
 [data-theme="dark"] {
-  --accent-lt:  rgba(37,99,235,.15);
-  --green-bg:   rgba(5,150,105,.12);
-  --green-b:    rgba(5,150,105,.3);
-  --red-bg:     rgba(220,38,38,.12);
-  --red-b:      rgba(220,38,38,.3);
-  --yellow-bg:  rgba(217,119,6,.12);
-  --yellow-b:   rgba(217,119,6,.3);
-  --purple-bg:  rgba(124,58,237,.12);
-  --purple-b:   rgba(124,58,237,.3);
+  --accent-lt:  rgba(37,99,235,.18);
+  --green-bg:   rgba(5,150,105,.15);
+  --green-b:    rgba(5,150,105,.35);
+  --red-bg:     rgba(220,38,38,.15);
+  --red-b:      rgba(220,38,38,.35);
+  --yellow-bg:  rgba(217,119,6,.15);
+  --yellow-b:   rgba(217,119,6,.35);
+  --purple-bg:  rgba(124,58,237,.15);
+  --purple-b:   rgba(124,58,237,.35);
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -492,23 +467,9 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 /* Media modal */
 #audio-modal { width: 660px; max-width: 94vw; overflow: visible; }
 #audio-overlay { z-index: 1500; }
-/* Video.js fullscreen — must escape modal and cover everything */
-.video-js.vjs-fullscreen {
-  z-index: 999999 !important;
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  border-radius: 0 !important;
-  max-height: none !important;
-}
-.video-js.vjs-fullscreen video { object-fit: contain !important; }
-/* Audio Plyr */
-.plyr--audio .plyr__controls { border-radius: 8px; border: 1px solid var(--border, #e2e8f0); }
-[data-theme="dark"] .plyr--audio .plyr__controls { border-color: #1e2d40; background: #1e293b; }
 #audio-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; word-break: break-all; line-height: 1.4; color: var(--text); }
 #audio-modal .meta { font-size: 12px; color: var(--text2); font-family: var(--mono); margin-bottom: 16px; line-height: 1.8; }
-#audio-player { width: 100%; margin-bottom: 14px; border-radius: 6px; accent-color: var(--accent); }
+
 .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Export modal */
@@ -568,7 +529,54 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .drp-arrow { color: var(--text3); font-size: 16px; padding-bottom: 8px; flex-shrink: 0; }
 .drp-actions { display: flex; gap: 8px; }
 @media (max-width: 1100px) { .dash-layout, .rec-layout { grid-template-columns: 1fr; } .status-sidebar { display: none; } }
-@media (max-width: 800px) { .stats-grid { grid-template-columns: repeat(2,1fr); } .analytics-row { grid-template-columns: 1fr; } .page-body { padding: 14px 16px; } header, .tab-bar { padding-left: 16px; padding-right: 16px; } }
+@media (max-width: 800px) { .stats-grid { grid-template-columns: repeat(2,1fr); } .analytics-row { grid-template-columns: 1fr; } .page-body { padding: 14px 12px; } header, .tab-bar { padding-left: 12px; padding-right: 12px; } }
+@media (max-width: 600px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-value { font-size: 26px; }
+  .filters-bar { flex-direction: column; align-items: stretch; }
+  .filters-bar select, .filters-bar .drp-wrap, .filters-bar .search-box { width: 100% !important; min-width: unset; }
+  .drp-btn { min-width: unset; width: 100%; }
+  .table-outer { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 640px; }
+  .agent-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  #audio-modal { padding: 18px 14px; }
+  .modal-actions { flex-wrap: wrap; }
+  .logo-text h1 { font-size: 14px; }
+  #status-bar { font-size: 11px; padding: 4px 8px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab-btn { padding: 10px 14px 9px; font-size: 13px; }
+  .header-right { gap: 5px; }
+  .analytics-row { gap: 10px; }
+}
+/* Recordings sidebar sticky scroll */
+.rec-layout { align-items: start; }
+.rec-sidebar-sticky { position: sticky; top: 112px; max-height: calc(100vh - 130px); overflow-y: auto; }
+/* Duration distribution chart */
+.dur-dist-chart { display: flex; align-items: flex-end; gap: 4px; height: 80px; margin-bottom: 8px; }
+.dur-bar { flex: 1; border-radius: 3px 3px 0 0; min-height: 3px; background: linear-gradient(180deg, var(--purple), #a78bfa); position: relative; cursor: default; }
+.dur-bar:hover { opacity: .8; }
+.dur-bar:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100%+4px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 3px 8px; border-radius: 4px; font-family: var(--mono); font-size: 10px; white-space: nowrap; z-index: 10; }
+.dur-labels { display: flex; gap: 4px; margin-top: 5px; }
+.dur-lbl { flex: 1; font-family: var(--mono); font-size: 8px; color: var(--text3); text-align: center; }
+/* Today summary card */
+.today-card { padding: 18px 20px; margin-bottom: 14px; }
+.today-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+@media (max-width: 600px) { .today-grid { grid-template-columns: repeat(2,1fr); } }
+.today-item { text-align: center; padding: 12px 8px; background: var(--surface2); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.today-val { font-size: 22px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+.today-lbl { font-size: 10px; color: var(--text3); letter-spacing: .8px; text-transform: uppercase; font-family: var(--mono); margin-top: 3px; }
+/* Leaderboard */
+.leaderboard-list { display: flex; flex-direction: column; gap: 6px; }
+.lb-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--surface2); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.lb-rank { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text3); width: 20px; text-align: center; flex-shrink: 0; }
+.lb-rank.top1 { color: #f59e0b; }
+.lb-rank.top2 { color: #94a3b8; }
+.lb-rank.top3 { color: #cd7c2f; }
+.lb-name { font-weight: 600; font-size: 13px; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-bar-wrap { width: 60px; background: var(--border2); border-radius: 3px; height: 5px; flex-shrink: 0; }
+.lb-bar-fill { height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+.lb-count { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 600; flex-shrink: 0; }
+/* Keyboard shortcut hint */
+.kbd-hint { font-family: var(--mono); font-size: 10px; color: var(--text3); background: var(--surface2); border: 1px solid var(--border2); padding: 1px 5px; border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -648,8 +656,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
   <div class="logo">
     <div class="logo-icon">RN</div>
     <div class="logo-text">
-      <h1>Call <span>Dashboard</span></h1>
-      <div class="logo-sub">Recording Monitor</div>
+      <h1>Monitor <span>Dashboard</span></h1>
+      <div class="logo-sub">Call Recording Monitor</div>
     </div>
   </div>
   <div class="header-right">
@@ -658,20 +666,28 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
     <!-- User menu -->
     <div id="user-menu-wrap" style="display:none;position:relative;">
       <button id="user-menu-btn" onclick="toggleUserMenu()" style="
-        display:flex;align-items:center;gap:7px;background:var(--surface2);
+        display:flex;align-items:center;gap:6px;background:var(--surface2);
         border:1px solid var(--border);border-radius:20px;padding:4px 10px 4px 4px;
         cursor:pointer;font-family:var(--sans);transition:all .15s;
       " onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-        <img id="user-avatar" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'">
-        <span id="user-name" style="font-size:12px;font-weight:600;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-        <span id="user-role-badge" style="font-size:10px;font-family:var(--mono);background:var(--accent-lt);color:var(--accent);padding:1px 6px;border-radius:4px;letter-spacing:.5px;"></span>
+        <div id="user-avatar-wrap" style="width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;">
+          <img id="user-avatar" src="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;display:none;" onerror="this.style.display='none';document.getElementById('user-initials').style.display='flex'">
+          <span id="user-initials" style="font-size:11px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;width:100%;height:100%;"></span>
+        </div>
+        <span id="user-name" style="font-size:12px;font-weight:600;color:var(--text2);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <span id="user-role-badge" style="font-size:10px;font-family:var(--mono);background:var(--accent-lt);color:var(--accent);padding:1px 6px;border-radius:4px;letter-spacing:.5px;display:none;"></span>
         <span style="font-size:10px;color:var(--text3);">▾</span>
       </button>
       <div id="user-menu-dropdown" style="
         display:none;position:absolute;top:calc(100%+6px);right:0;
         background:var(--surface);border:1px solid var(--border);border-radius:10px;
-        box-shadow:var(--shadow-md);min-width:180px;z-index:500;overflow:hidden;
+        box-shadow:var(--shadow-md);min-width:200px;z-index:500;overflow:hidden;
       ">
+        <!-- User info header in dropdown -->
+        <div id="user-menu-info" style="padding:12px 14px;border-bottom:1px solid var(--border);background:var(--surface2);">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;" id="user-menu-fullname">—</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);" id="user-menu-email">—</div>
+        </div>
         <button onclick="loadAllData();toggleUserMenu()" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--text2);font-family:var(--sans);display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
           &#8635; Refresh Data
         </button>
@@ -734,9 +750,10 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
     <button class="modal-close" onclick="closeAudio()">&#x2715;</button>
     <h3 id="audio-title">—</h3>
     <div class="meta" id="audio-meta">—</div>
-    <audio id="audio-player" controls preload="none" style="display:none;width:100%;margin-bottom:14px;border-radius:6px;accent-color:var(--accent);"></audio>
-    <div id="audio-container" style="display:none;margin-bottom:14px;"><audio id="audio-player" preload="none" style="width:100%;"></audio></div>
-    <video id="video-player" class="video-js vjs-default-skin vjs-big-play-centered" preload="none" style="display:none;width:100%;aspect-ratio:16/9;max-height:360px;border-radius:8px;"></video>
+    <!-- Native audio player -->
+    <audio id="audio-player" class="native-audio" controls preload="none"></audio>
+    <!-- Native video player with dblclick fullscreen -->
+    <video id="video-player" class="native-video" controls preload="none" playsinline></video>
     <div class="modal-actions">
       <a id="audio-dl" class="btn btn-primary btn-sm" download>Download</a>
       <button class="btn btn-ghost btn-sm" onclick="copyAudioLink()">Copy Link</button>
@@ -770,6 +787,17 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
   <div class="page-body">
     <div class="dash-layout">
       <div class="dash-main">
+
+        <!-- Today Summary -->
+        <div class="today-card card" id="today-summary-card" style="margin-bottom:14px;">
+          <div class="chart-title">Today's Summary</div>
+          <div class="today-grid" id="today-grid">
+            <div class="today-item"><div class="today-val" id="td-calls">—</div><div class="today-lbl">Calls</div></div>
+            <div class="today-item"><div class="today-val" id="td-peak" style="font-size:16px;">—</div><div class="today-lbl">Peak Hour</div></div>
+            <div class="today-item"><div class="today-val" id="td-avg" style="font-size:16px;">—</div><div class="today-lbl">Avg Duration</div></div>
+            <div class="today-item"><div class="today-val" id="td-agents">—</div><div class="today-lbl">Active Agents</div></div>
+          </div>
+        </div>
 
         <!-- KPI -->
         <div class="stats-grid">
@@ -824,6 +852,19 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <div class="chart-title">Calls by Hour</div>
             <div class="hourly-chart" id="hourly-chart"></div>
             <div class="hourly-labels" id="hourly-labels"></div>
+          </div>
+        </div>
+
+        <!-- Row 3: Duration Distribution + Agent Leaderboard -->
+        <div class="analytics-row" style="margin-bottom:14px;">
+          <div class="chart-card card">
+            <div class="chart-title">Call Duration Distribution</div>
+            <div class="dur-dist-chart" id="dur-dist-chart"></div>
+            <div class="dur-labels" id="dur-labels"></div>
+          </div>
+          <div class="chart-card card">
+            <div class="chart-title">Agent Leaderboard</div>
+            <div class="leaderboard-list" id="leaderboard-list"></div>
           </div>
         </div>
 
@@ -963,8 +1004,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
           </div>
           <button class="btn btn-sm btn-export" onclick="openExport()">Export CSV</button>
         </div>
-        <div class="table-outer">
-          <table>
+        <div class="table-outer" style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <table style="border:none;border-radius:0;">
             <thead>
               <tr>
                 <th onclick="sortBy('datetime')">Date &amp; Time &#8597;</th>
@@ -1003,7 +1044,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
       </div><!-- /rec-main -->
 
       <!-- Sidebar -->
-      <div class="status-sidebar">
+      <div class="status-sidebar rec-sidebar-sticky">
         <div class="status-card card">
           <div class="status-card-title">Live Agent Status</div>
           <div class="status-refresh-lbl">Refreshes every 2 min</div>
@@ -1015,7 +1056,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
     </div>
   </div>
 </div>
-  
+
 <script>
 // ── Firebase Config ────────────────────────────────────────────
 // TODO: Replace with your Firebase project config
@@ -1082,7 +1123,7 @@ async function loadUserProfile(uid, email){
   }
   return null;
 }
-    
+
 // ── Apply permissions to UI ────────────────────────────────────
 function applyPermissions(profile){
   const role = profile.role || 'agent';
@@ -1090,9 +1131,37 @@ function applyPermissions(profile){
 
   // Show user menu
   document.getElementById('user-menu-wrap').style.display = 'block';
-  document.getElementById('user-name').textContent     = currentUser.displayName || currentUser.email;
-  document.getElementById('user-role-badge').textContent = role.toUpperCase();
-  if(currentUser.photoURL) document.getElementById('user-avatar').src = currentUser.photoURL;
+
+  // Short name (first name only)
+  const fullName = currentUser.displayName || currentUser.email.split('@')[0];
+  const firstName = fullName.split(' ')[0];
+  document.getElementById('user-name').textContent = firstName;
+
+  // Fill dropdown info
+  document.getElementById('user-menu-fullname').textContent = fullName;
+  document.getElementById('user-menu-email').textContent = currentUser.email;
+
+  // Avatar or initials
+  if(currentUser.photoURL){
+    const img = document.getElementById('user-avatar');
+    img.src = currentUser.photoURL;
+    img.style.display = 'block';
+    document.getElementById('user-initials').style.display = 'none';
+  } else {
+    const initials = fullName.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    document.getElementById('user-initials').textContent = initials;
+  }
+
+  // Role badge — only show ADMIN
+  const badge = document.getElementById('user-role-badge');
+  if(role === 'admin'){
+    badge.textContent = 'ADMIN';
+    badge.style.display = 'inline';
+    badge.style.background = 'rgba(220,38,38,.15)';
+    badge.style.color = 'var(--red)';
+  } else {
+    badge.style.display = 'none';
+  }
 
   // Admin-only items in dropdown
   const adminBtn    = document.getElementById('admin-btn');
@@ -1391,7 +1460,8 @@ function finishLoad() {
   updateStats(); updateCharts(); updateTrendChart();
   updatePlatformGrid(); updateAgentGrid2();
   populateAgentFilter(); applyFilters();
-  updateInsights();
+  updateInsights(); updateTodaySummary();
+  updateDurationDistribution(); updateLeaderboard();
   startOnlineMonitor();
   document.getElementById('badge-filtered').textContent = allRecordings.length;
 }
@@ -1465,13 +1535,17 @@ function updateCharts(){
   const maxH=Math.max(...hours,1);
   document.getElementById('hourly-chart').innerHTML=hours.map((c,h)=>'<div class="h-bar" style="height:'+Math.max(2,Math.round((c/maxH)*68))+'px;" data-tip="'+h+':00 — '+c+' calls"></div>').join('');
   document.getElementById('hourly-labels').innerHTML=Array.from({length:24},(_,i)=>'<div class="h-label">'+(i%4===0?i:'')+'</div>').join('');
-  // Heatmap
+  // Heatmap — 8:00 to 20:00 only (office hours)
   const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const HM_START=8, HM_END=20; // 8am to 8pm
   const grid=Array.from({length:7},()=>Array(24).fill(0));
   allRecordings.forEach(r=>{const dt=r.datetime||(r.date?(r.date+' '+(r.time||'00:00')):'');if(!dt)return;const d=new Date(dt);if(isNaN(d))return;grid[d.getDay()][d.getHours()]++;});
   const maxV=Math.max(...grid.flat(),1);
-  let h='<div class="hm-inner"><div class="hm-days-col">'+DAYS.map(d=>'<div class="hm-day-lbl">'+d+'</div>').join('')+'</div><div class="hm-grid-col"><div class="hm-hour-lbls">'+Array.from({length:24},(_,i)=>'<div class="hm-hour-lbl">'+(i%6===0?i:'')+'</div>').join('')+'</div>';
-  for(let day=0;day<7;day++){h+='<div class="hm-row">';for(let hr=0;hr<24;hr++){const v=grid[day][hr];const a=v===0?0:Math.max(0.07,v/maxV);h+='<div class="hm-cell" style="background:rgba(37,99,235,'+a.toFixed(2)+');'+(v>0?'border-color:rgba(37,99,235,.25);':'')+'" data-tip="'+DAYS[day]+' '+hr+':00 — '+v+' calls"></div>';}h+='</div>';}
+  const hmHours=HM_END-HM_START; // 12 hours
+  let h='<div class="hm-inner"><div class="hm-days-col">'+DAYS.map(d=>'<div class="hm-day-lbl">'+d+'</div>').join('')+'</div><div class="hm-grid-col"><div class="hm-hour-lbls">';
+  for(let i=HM_START;i<HM_END;i++) h+='<div class="hm-hour-lbl">'+(i%2===0?i+'h':'')+'</div>';
+  h+='</div>';
+  for(let day=0;day<7;day++){h+='<div class="hm-row">';for(let hr=HM_START;hr<HM_END;hr++){const v=grid[day][hr];const a=v===0?0:Math.max(0.07,v/maxV);h+='<div class="hm-cell" style="background:rgba(37,99,235,'+a.toFixed(2)+');'+(v>0?'border-color:rgba(37,99,235,.25);':'')+'" data-tip="'+DAYS[day]+' '+hr+':00 — '+v+' calls"></div>';}h+='</div>';}
   h+='</div></div>';
   document.getElementById('hm-wrap').innerHTML=h;
 }
@@ -1693,10 +1767,7 @@ function renderTable(){
 }
 function goPage(p){const rpp=rowsPerPage===Infinity?filtered.length:rowsPerPage;const tot=Math.ceil(filtered.length/rpp);if(p<1||p>tot)return;currentPage=p;renderTable();}
 
-// ── Media Player ───────────────────────────────────────────────
-let _plyrInstance = null;   // audio only
-let _vjsInstance  = null;   // video only
-
+// ── Media Player (Native) ───────────────────────────────────────
 function openMedia(i){
   const r = filtered[i];
   const media = getMediaPath(r);
@@ -1710,66 +1781,24 @@ function openMedia(i){
     +'<span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span> · '
     +(r.duration_formatted||fmtDur(r.duration_seconds)||'—');
 
-  // Destroy previous instances
-  if(_plyrInstance){ try{_plyrInstance.destroy();}catch(e){} _plyrInstance=null; }
-  if(_vjsInstance){  try{_vjsInstance.dispose();}catch(e){}  _vjsInstance=null;  }
-
   const isVideo = media.type === 'video';
   const videoEl = document.getElementById('video-player');
-  const audioContainer = document.getElementById('audio-container');
+  const audioEl = document.getElementById('audio-player');
+
+  // Stop and reset both
+  videoEl.pause(); videoEl.removeAttribute('src'); videoEl.load();
+  audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
 
   if(isVideo){
-    audioContainer.style.display = 'none';
+    audioEl.style.display = 'none';
     videoEl.style.display = 'block';
-
-    // Init Video.js
-    _vjsInstance = videojs('video-player', {
-      controls: true,
-      preload: 'auto',
-      fluid: false,
-      responsive: false,
-      playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-      controlBar: {
-        children: [
-          'playToggle',
-          'progressControl',
-          'currentTimeDisplay',
-          'timeDivider',
-          'durationDisplay',
-          'volumePanel',
-          'playbackRateMenuButton',
-          'fullscreenToggle',
-        ]
-      }
-    });
-
-    _vjsInstance.src({ src: media.url, type: 'video/mp4' });
-
-    // Double-click to toggle fullscreen
-    _vjsInstance.ready(function(){
-      const el = this.el();
-      el.addEventListener('dblclick', function(e){
-        if(e.target.closest('.vjs-control-bar')) return;
-        if(_vjsInstance.isFullscreen()) _vjsInstance.exitFullscreen();
-        else _vjsInstance.requestFullscreen();
-      });
-    });
-
+    videoEl.src = media.url;
+    videoEl.load();
   } else {
-    // Audio — Plyr destroys & replaces the element, so always recreate it fresh
-    const audioContainer = document.getElementById('audio-container');
-    audioContainer.innerHTML = '<audio id="audio-player" preload="none" style="width:100%;"></audio>';
-    const freshAudio = document.getElementById('audio-player');
     videoEl.style.display = 'none';
-    audioContainer.style.display = 'block';
-    freshAudio.src = media.url;
-    _plyrInstance = new Plyr(freshAudio, {
-      controls: ['play','progress','current-time','duration','mute','volume','settings'],
-      settings: ['speed'],
-      speed: {selected:1, options:[0.5,0.75,1,1.25,1.5,2]},
-      keyboard: {focused:true, global:false},
-      tooltips: {controls:true, seek:true},
-    });
+    audioEl.style.display = 'block';
+    audioEl.src = media.url;
+    audioEl.load();
   }
 
   document.getElementById('audio-dl').href = media.url;
@@ -1777,26 +1806,26 @@ function openMedia(i){
   document.getElementById('audio-overlay').classList.add('show');
 }
 
-function _toggleFullscreen(el){ /* unused — vjs handles its own fullscreen */ }
+// Double-click fullscreen on native video
+document.addEventListener('DOMContentLoaded', function(){
+  const vid = document.getElementById('video-player');
+  if(!vid) return;
+  vid.addEventListener('dblclick', function(){
+    if(!document.fullscreenElement){
+      vid.requestFullscreen && vid.requestFullscreen();
+    } else {
+      document.exitFullscreen && document.exitFullscreen();
+    }
+  });
+});
+
 function openAudio(i){ openMedia(i); }
 function closeAudio(){
   document.getElementById('audio-overlay').classList.remove('show');
-  if(_plyrInstance){ try{_plyrInstance.stop();_plyrInstance.destroy();}catch(e){} _plyrInstance=null; }
-  if(_vjsInstance){
-    try{ if(!_vjsInstance.paused()) _vjsInstance.pause(); _vjsInstance.dispose(); }catch(e){}
-    _vjsInstance=null;
-    // Video.js dispose removes the element — recreate it for next open
-    const modal = document.getElementById('audio-modal');
-    const actionsDiv = modal.querySelector('.modal-actions');
-    const v = document.createElement('video');
-    v.id='video-player'; v.className='video-js vjs-default-skin vjs-big-play-centered';
-    v.setAttribute('preload','none');
-    v.style.cssText='display:none;width:100%;aspect-ratio:16/9;max-height:360px;border-radius:8px;';
-    modal.insertBefore(v, actionsDiv);
-  }
-  // Reset audio container
-  const audioContainer = document.getElementById('audio-container');
-  if(audioContainer){ audioContainer.style.display='none'; audioContainer.innerHTML='<audio id="audio-player" preload="none" style="width:100%;"></audio>'; }
+  const videoEl = document.getElementById('video-player');
+  const audioEl = document.getElementById('audio-player');
+  videoEl.pause(); videoEl.removeAttribute('src'); videoEl.load(); videoEl.style.display='none';
+  audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); audioEl.style.display='none';
 }
 function copyAudioLink(){navigator.clipboard.writeText(currentAudioUrl).then(()=>showToast('Link copied!'));}
 function copyLink(i){const r=filtered[i];const media=getMediaPath(r);navigator.clipboard.writeText(media.url).then(()=>showToast('Link copied!'));}
@@ -1873,74 +1902,130 @@ function updateInsights(){
   if(!allRecordings.length){document.getElementById('insights-content').innerHTML='<span>No data yet.</span>';return;}
   const recs=allRecordings;
   const tot=recs.length;
-  // Busiest day of week
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const byday=Array(7).fill(0);
   recs.forEach(r=>{const d=new Date(r.datetime||(r.date+' '+(r.time||'00:00')));if(!isNaN(d))byday[d.getDay()]++;});
-  const busiestDay=days[byday.indexOf(Math.max(...byday))];
-  // Busiest hour
+  const busiestDayIdx=byday.indexOf(Math.max(...byday));
+  const busiestDay=days[busiestDayIdx];
   const byhour=Array(24).fill(0);
   recs.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))byhour[h]++;}});
   const busiestHour=byhour.indexOf(Math.max(...byhour));
-  const busiestHourStr=busiestHour+':00–'+(busiestHour+1)+':00';
-  // Quietest hour (only during business hours 8-20)
   const bizHours=byhour.slice(8,20);
   const quietestHour=8+bizHours.indexOf(Math.min(...bizHours));
-  // Top agent
   const byagent={};recs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';byagent[n]=(byagent[n]||0)+1;});
   const topAgent=Object.entries(byagent).sort((a,b)=>b[1]-a[1])[0];
   const topAgentPct=tot?Math.round(topAgent[1]/tot*100):0;
-  // Avg duration
   const totalSec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
   const avgSec=tot?Math.round(totalSec/tot):0;
-  // Weekend vs weekday
   const weekend=recs.filter(r=>{const d=new Date(r.datetime||(r.date||''));return!isNaN(d)&&(d.getDay()===0||d.getDay()===6);}).length;
   const weekdayAvg=Math.round((tot-weekend)/5);
-  // Top platform
   const byplat={};recs.forEach(r=>{const p=r.platform||'WhatsApp';byplat[p]=(byplat[p]||0)+1;});
   const topPlat=Object.entries(byplat).sort((a,b)=>b[1]-a[1])[0];
   const topPlatPct=tot?Math.round(topPlat[1]/tot*100):0;
-  // Video ratio
   const hasVideo=recs.filter(r=>r._mp4Path).length;
   const videoPct=tot?Math.round(hasVideo/tot*100):0;
 
-  const row=(color,label,val,sub='')=>`
-    <div style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-        <div style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0;"></div>
-        <div style="font-size:9px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;">${label}</div>
-      </div>
-      <div style="font-size:13px;color:var(--text);font-weight:700;line-height:1.2;">${val}</div>
-      ${sub?'<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+sub+'</div>':''}
-    </div>`;
+  const line=(dot,label,val)=>`<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;line-height:1.4;">
+    <div style="width:6px;height:6px;border-radius:50%;background:${dot};flex-shrink:0;"></div>
+    <span style="color:var(--text3);min-width:88px;">${label}</span>
+    <span style="color:var(--text);font-weight:600;font-family:var(--mono);">${val}</span>
+  </div>`;
 
   document.getElementById('insights-content').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-      ${row('var(--accent)','Busiest Day',busiestDay,byday[days.indexOf(busiestDay)]+' calls')}
-      ${row('var(--accent)','Peak Hour',busiestHourStr,byhour[busiestHour]+' calls')}
-      ${row('var(--text3)','Quietest (biz)',quietestHour+':00–'+(quietestHour+1)+':00',bizHours[quietestHour-8]+' calls')}
-      ${row('var(--yellow)','Top Agent',topAgent[0].split(' ')[0],topAgentPct+'% · '+topAgent[1]+' calls')}
-      ${row('var(--green)','Top Platform',topPlat[0],topPlatPct+'%')}
-      ${row('var(--purple)','Avg Duration',fmtDur(avgSec))}
-      ${row('var(--accent2)','Video Recs',hasVideo+' / '+tot,videoPct+'%')}
-      ${row('var(--text3)','Weekday Avg','~'+weekdayAvg+'/day',weekend+' on weekends')}
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      ${line('var(--accent)','Busiest Day',busiestDay+' — '+byday[busiestDayIdx]+' calls')}
+      ${line('var(--accent)','Peak Hour',busiestHour+':00–'+(busiestHour+1)+':00 — '+byhour[busiestHour]+' calls')}
+      ${line('var(--text3)','Quietest (biz)',quietestHour+':00–'+(quietestHour+1)+':00 — '+bizHours[quietestHour-8]+' calls')}
+      ${line('var(--yellow)','Top Agent',topAgent[0].split(' ')[0]+' — '+topAgentPct+'% ('+topAgent[1]+' calls)')}
+      ${line('var(--green)','Top Platform',topPlat[0]+' — '+topPlatPct+'%')}
+      ${line('var(--purple)','Avg Duration',fmtDur(avgSec))}
+      ${line('var(--accent2)','Video Recs',hasVideo+' / '+tot+' ('+videoPct+'%)')}
+      ${line('var(--text3)','Weekday Avg','~'+weekdayAvg+' calls/day')}
     </div>`;
+}
+
+// ── Today Summary ───────────────────────────────────────────────
+function updateTodaySummary(){
+  const today=new Date().toISOString().slice(0,10);
+  const todayRecs=allRecordings.filter(r=>r.date===today||(r.datetime&&r.datetime.slice(0,10)===today));
+  document.getElementById('td-calls').textContent=todayRecs.length||'0';
+  // Peak hour today
+  const byhour=Array(24).fill(0);
+  todayRecs.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))byhour[h]++;}});
+  const peakH=byhour.indexOf(Math.max(...byhour));
+  document.getElementById('td-peak').textContent=todayRecs.length?(peakH+'h'):'—';
+  // Avg duration today
+  const totSec=todayRecs.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  document.getElementById('td-avg').textContent=todayRecs.length?fmtDur(Math.round(totSec/todayRecs.length)):'—';
+  // Active agents today
+  const agents=new Set(todayRecs.map(r=>r.agent_name||r._agentFolder||'Unknown'));
+  document.getElementById('td-agents').textContent=agents.size||'0';
+}
+
+// ── Duration Distribution ───────────────────────────────────────
+function updateDurationDistribution(){
+  if(!allRecordings.length)return;
+  const buckets=[
+    {label:'<30s',max:30,count:0},
+    {label:'30s–1m',max:60,count:0},
+    {label:'1–2m',max:120,count:0},
+    {label:'2–5m',max:300,count:0},
+    {label:'5–10m',max:600,count:0},
+    {label:'10–20m',max:1200,count:0},
+    {label:'20–30m',max:1800,count:0},
+    {label:'>30m',max:Infinity,count:0}
+  ];
+  allRecordings.forEach(r=>{
+    const sec=r.duration_seconds||0;
+    for(const b of buckets){if(sec<b.max){b.count++;break;}}
+  });
+  const maxC=Math.max(...buckets.map(b=>b.count),1);
+  document.getElementById('dur-dist-chart').innerHTML=buckets.map(b=>
+    '<div class="dur-bar" style="height:'+Math.max(3,Math.round((b.count/maxC)*76))+'px;" data-tip="'+b.label+': '+b.count+' calls"></div>'
+  ).join('');
+  document.getElementById('dur-labels').innerHTML=buckets.map(b=>
+    '<div class="dur-lbl">'+b.label+'</div>'
+  ).join('');
+}
+
+// ── Agent Leaderboard ───────────────────────────────────────────
+function updateLeaderboard(){
+  if(!allRecordings.length)return;
+  const byagent={};
+  allRecordings.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';byagent[n]=(byagent[n]||0)+1;});
+  const sorted=Object.entries(byagent).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxC=sorted[0]?sorted[0][1]:1;
+  const rankClass=['top1','top2','top3'];
+  document.getElementById('leaderboard-list').innerHTML=sorted.map(([name,count],i)=>
+    '<div class="lb-row">'
+    +'<div class="lb-rank '+(rankClass[i]||'')+'">'+( i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1))+'</div>'
+    +'<div class="lb-name">'+name+'</div>'
+    +'<div class="lb-bar-wrap"><div class="lb-bar-fill" style="width:'+Math.round(count/maxC*100)+'%"></div></div>'
+    +'<div class="lb-count">'+count+'</div>'
+    +'</div>'
+  ).join('');
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';},2200);}
 
 // ── Init ───────────────────────────────────────────────────────
 window.onload=function(){
-  // Hide app until auth confirmed — auth gate shows spinner by default
   document.body.querySelectorAll('header,.tab-bar,.page-body,#toast').forEach(el=>el.style.display='none');
-  // Restore theme
   const saved=localStorage.getItem('wc_theme');
   if(saved==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('theme-toggle').innerHTML='&#9728;';}
-  // Export listeners
   ['export-agent','export-type','export-date-from','export-date-to'].forEach(id=>{document.getElementById(id)?.addEventListener('change',updateExportCount);});
 };
+
+// ── Keyboard Shortcuts ─────────────────────────────────────────
+document.addEventListener('keydown', function(e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT') return;
+  if(e.key==='Escape'){
+    if(document.getElementById('audio-overlay').classList.contains('show')){closeAudio();return;}
+    if(document.getElementById('settings-overlay').classList.contains('show')){closeSettings();return;}
+    if(document.getElementById('export-overlay').classList.contains('show')){closeExport();return;}
+  }
+  if(e.key==='r'||e.key==='R'){if(e.ctrlKey||e.metaKey)return;loadAllData();}
+});
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.js"></script>
 </body>
 </html>
