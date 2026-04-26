@@ -1711,10 +1711,9 @@ async function fetchAgentStatus(){
     const now=Date.now();
     _agentStatus=Object.entries(data).map(function(e){
       const id=e[0],info=e[1];
-      // last_seen is Bangladesh time (UTC+6) stored as "YYYY-MM-DD HH:MM:SS"
-      // Parse as UTC+6 explicitly so any browser timezone gives correct result
+      // Parse last_seen as UTC (append Z) — server stores time in UTC
       const raw=(info.last_seen||'').replace(' ','T');
-      const ts=new Date(raw+'+06:00').getTime();
+      const ts=new Date(raw+'Z').getTime();
       return{id,name:info.agent_name||id,ts,online:(now-ts)<ONLINE_MS};
     }).sort((a,b)=>b.ts-a.ts);
   }catch(e){}
