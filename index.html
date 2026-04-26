@@ -135,7 +135,7 @@ header {
   font-family: var(--mono); font-size: 11px; color: var(--text3);
   padding: 4px 10px; border-radius: 20px;
   background: var(--surface2); border: 1px solid var(--border);
-  transition: all .2s; max-width: 180px;
+  transition: all .2s; max-width: 200px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 @media (max-width: 600px) { #status-bar { display: none; } }
@@ -254,18 +254,14 @@ header {
 .hourly-labels { display: flex; gap: 2px; margin-top: 5px; }
 .h-label { flex: 1; font-family: var(--mono); font-size: 8px; color: var(--text3); text-align: center; }
 
-/* Heatmap */
-.hm-wrap { overflow-x: auto; }
-.hm-inner { display: flex; gap: 6px; min-width: fit-content; }
-.hm-days-col { display: flex; flex-direction: column; gap: 3px; padding-top: 20px; }
-.hm-day-lbl { font-family: var(--mono); font-size: 10px; color: var(--text3); height: 20px; line-height: 20px; width: 28px; }
-.hm-grid-col { display: flex; flex-direction: column; }
-.hm-hour-lbls { display: flex; gap: 3px; margin-bottom: 3px; height: 15px; }
-.hm-hour-lbl { font-family: var(--mono); font-size: 9px; color: var(--text3); width: 20px; text-align: center; }
-.hm-row { display: flex; gap: 3px; margin-bottom: 3px; }
-.hm-cell { width: 20px; height: 20px; border-radius: 3px; background: var(--hm-empty); cursor: default; position: relative; border: 1px solid var(--border); transition: transform .1s; }
-.hm-cell:hover { transform: scale(1.35); z-index: 5; border-color: var(--accent); }
-.hm-cell:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100%+5px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 3px 9px; border-radius: 4px; font-family: var(--mono); font-size: 10px; white-space: nowrap; z-index: 10; }
+/* Heatmap — fully responsive, fills container */
+.hm-wrap { width: 100%; overflow-x: auto; }
+.hm-table { width: 100%; border-collapse: separate; border-spacing: 3px; }
+.hm-day-th { font-family: var(--mono); font-size: 10px; color: var(--text3); text-align: right; padding-right: 6px; white-space: nowrap; width: 30px; vertical-align: middle; }
+.hm-hour-th { font-family: var(--mono); font-size: 9px; color: var(--text3); text-align: center; }
+.hm-cell { border-radius: 3px; background: var(--hm-empty); cursor: default; position: relative; border: 1px solid var(--border); transition: transform .1s; }
+.hm-cell:hover { transform: scale(1.4); z-index: 5; border-color: var(--accent); }
+.hm-cell:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100%+5px); left: 50%; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 3px 9px; border-radius: 4px; font-family: var(--mono); font-size: 10px; white-space: nowrap; z-index: 10; pointer-events: none; }
 
 /* ── Dashboard layout ── */
 .dash-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
@@ -574,7 +570,9 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .today-val { font-size: 22px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
 .today-lbl { font-size: 10px; color: var(--text3); letter-spacing: .8px; text-transform: uppercase; font-family: var(--mono); margin-top: 3px; }
 /* Leaderboard */
-.leaderboard-list { display: flex; flex-direction: column; gap: 6px; }
+.leaderboard-list { display: flex; flex-direction: column; gap: 6px; max-height: 168px; overflow-y: auto; }
+.leaderboard-list::-webkit-scrollbar { width: 3px; }
+.leaderboard-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 .lb-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--surface2); border-radius: var(--radius-sm); border: 1px solid var(--border); }
 .lb-rank { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text3); width: 20px; text-align: center; flex-shrink: 0; }
 .lb-rank.top1 { color: #f59e0b; }
@@ -1275,7 +1273,7 @@ const CACHE_KEY  = 'wc_recordings_cache_v2';
 const CACHE_TS   = 'wc_recordings_ts_v2';
 const CACHE_TTL  = 5 * 60 * 1000;
 const STATUS_URL = 'https://rncall.github.io/status.json';
-const ONLINE_MS  = 3 * 60 * 1000;
+const ONLINE_MS  = 7 * 60 * 1000; // 7 minutes
 
 // ── State ──────────────────────────────────────────────────────
 let allRecordings = [], filtered = [];
@@ -1396,24 +1394,46 @@ async function loadAllData() {
   if (Date.now()-ts<CACHE_TTL) {
     try {
       const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'[]');
-      if (c.length) { allRecordings=c; finishLoad(); setStatus('Connected (cached) — '+allRecordings.length+' recordings','ok'); return; }
+      if (c.length) { allRecordings=c; finishLoad(); setStatus('Connected (cached) — '+allRecordings.length+' recordings','ok'); startAutoSync(); return; }
     } catch(e){}
   }
+  await fetchFreshData();
+  startAutoSync();
+}
+
+async function fetchFreshData(){
   try {
-    // Sort descending so newest data loads first
+    allRecordings=[];
+    // Sort descending — newest year/month/day first for fast progressive display
     const years=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
     for(const y of years){
       const yRecs=await loadYear(y.name);
       allRecordings.push(...yRecs);
-      // Show progressive results as data comes in
-      if(allRecordings.length>0){
-        finishLoad();
-        setStatus('Loading... '+allRecordings.length+' recordings','loading');
-      }
+      if(allRecordings.length>0){finishLoad();setStatus('Loading... '+allRecordings.length+' recordings','loading');}
     }
-    try { localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings)); localStorage.setItem(CACHE_TS,String(Date.now())); } catch(e){}
-    finishLoad(); setStatus('Connected — '+allRecordings.length+' recordings','ok');
-  } catch(err) { setStatus('Error: '+err.message,'error'); }
+    try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
+    finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
+  } catch(err){setStatus('Error: '+err.message,'error');}
+}
+
+let _syncTimer=null;
+function startAutoSync(){
+  if(_syncTimer)clearInterval(_syncTimer);
+  // Re-sync every 5 minutes automatically
+  _syncTimer=setInterval(async function(){
+    if(!NC_URL)return;
+    try{
+      const freshYear=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name))[0];
+      if(!freshYear)return;
+      // Load only the most recent year to catch new recordings fast
+      const newRecs=await loadYear(freshYear.name);
+      // Merge: keep old records from older years, replace current year's
+      const otherRecs=allRecordings.filter(r=>{const d=r.date||'';return!d.startsWith(freshYear.name);});
+      allRecordings=[...newRecs,...otherRecs];
+      try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
+      finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
+    }catch(e){}
+  }, CACHE_TTL);
 }
 async function loadYear(y){
   const recs=[];
@@ -1563,18 +1583,28 @@ function updateCharts(){
   const maxH=Math.max(...hours,1);
   document.getElementById('hourly-chart').innerHTML=hours.map((c,h)=>'<div class="h-bar" style="height:'+Math.max(2,Math.round((c/maxH)*68))+'px;" data-tip="'+h+':00 — '+c+' calls"></div>').join('');
   document.getElementById('hourly-labels').innerHTML=Array.from({length:24},(_,i)=>'<div class="h-label">'+(i%4===0?i:'')+'</div>').join('');
-  // Heatmap — 8:00 to 20:00 only (office hours)
+  // Heatmap — 8:00 to 20:00, fully responsive table layout
   const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const HM_START=8, HM_END=20; // 8am to 8pm
+  const HM_START=8, HM_END=20;
   const grid=Array.from({length:7},()=>Array(24).fill(0));
   allRecordings.forEach(r=>{const dt=r.datetime||(r.date?(r.date+' '+(r.time||'00:00')):'');if(!dt)return;const d=new Date(dt);if(isNaN(d))return;grid[d.getDay()][d.getHours()]++;});
-  const maxV=Math.max(...grid.flat(),1);
-  const hmHours=HM_END-HM_START; // 12 hours
-  let h='<div class="hm-inner"><div class="hm-days-col">'+DAYS.map(d=>'<div class="hm-day-lbl">'+d+'</div>').join('')+'</div><div class="hm-grid-col"><div class="hm-hour-lbls">';
-  for(let i=HM_START;i<HM_END;i++) h+='<div class="hm-hour-lbl">'+(i%2===0?i+'h':'')+'</div>';
-  h+='</div>';
-  for(let day=0;day<7;day++){h+='<div class="hm-row">';for(let hr=HM_START;hr<HM_END;hr++){const v=grid[day][hr];const a=v===0?0:Math.max(0.07,v/maxV);h+='<div class="hm-cell" style="background:rgba(37,99,235,'+a.toFixed(2)+');'+(v>0?'border-color:rgba(37,99,235,.25);':'')+'" data-tip="'+DAYS[day]+' '+hr+':00 — '+v+' calls"></div>';}h+='</div>';}
-  h+='</div></div>';
+  const maxV=Math.max(...grid.map(row=>row.slice(HM_START,HM_END)).flat(),1);
+  // Build table — cells stretch to fill available width
+  let h='<table class="hm-table"><thead><tr><th class="hm-day-th"></th>';
+  for(let hr=HM_START;hr<HM_END;hr++) h+='<th class="hm-hour-th">'+(hr%2===0?hr+'h':'')+'</th>';
+  h+='</tr></thead><tbody>';
+  for(let day=0;day<7;day++){
+    h+='<tr><td class="hm-day-th">'+DAYS[day]+'</td>';
+    for(let hr=HM_START;hr<HM_END;hr++){
+      const v=grid[day][hr];
+      const a=v===0?0:Math.max(0.08,v/maxV);
+      const bg=v===0?'var(--hm-empty)':'rgba(37,99,235,'+a.toFixed(2)+')';
+      const bc=v>0?'rgba(37,99,235,.25)':'var(--border)';
+      h+='<td class="hm-cell" style="background:'+bg+';border-color:'+bc+';height:20px;" data-tip="'+DAYS[day]+' '+hr+':00 — '+v+' calls"></td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
   document.getElementById('hm-wrap').innerHTML=h;
 }
 
@@ -2042,7 +2072,6 @@ window.onload=function(){
   const saved=localStorage.getItem('wc_theme');
   if(saved==='dark'){document.documentElement.setAttribute('data-theme','dark');document.getElementById('theme-toggle').innerHTML='&#9728;';}
   ['export-agent','export-type','export-date-from','export-date-to'].forEach(id=>{document.getElementById(id)?.addEventListener('change',updateExportCount);});
-  // PWA
   if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 };
 
