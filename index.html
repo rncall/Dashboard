@@ -265,6 +265,42 @@ header {
 .hm-cell:hover { transform: scale(1.35); z-index: 5; border-color: var(--accent); }
 .hm-cell:hover::after { content: attr(data-tip); position: fixed; background: var(--text); color: var(--surface); padding: 3px 9px; border-radius: 4px; font-family: var(--mono); font-size: 10px; white-space: nowrap; z-index: 9999; pointer-events: none; transform: translate(-50%, -130%); }
 
+/* ── Global Date Filter Bar ── */
+.global-filter-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 12px 16px; margin-bottom: 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.gf-label {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--text3);
+  margin-right: 4px; white-space: nowrap;
+}
+.gf-btn {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1px solid var(--border2); background: var(--surface2);
+  color: var(--text3); font-family: var(--mono); font-size: 11px;
+  cursor: pointer; transition: all .12s; white-space: nowrap;
+}
+.gf-btn:hover { border-color: var(--accent); color: var(--accent); }
+.gf-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.gf-custom-range { display: none; align-items: center; gap: 6px; }
+.gf-custom-range.show { display: flex; }
+.gf-date-input {
+  background: var(--surface); border: 1px solid var(--border2);
+  color: var(--text); padding: 4px 10px; border-radius: var(--radius-sm);
+  font-family: var(--mono); font-size: 11px; outline: none; width: 128px;
+}
+.gf-date-input:focus { border-color: var(--accent); }
+.gf-active-label {
+  margin-left: auto; font-family: var(--mono); font-size: 11px;
+  color: var(--accent); background: var(--accent-lt);
+  padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+  display: none;
+}
+.gf-active-label.show { display: block; }
+
 /* ── Dashboard layout ── */
 .dash-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: stretch; }
 .dash-main { min-width: 0; }
@@ -801,6 +837,29 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
     <div class="dash-layout">
       <div class="dash-main">
 
+        <!-- Global Date Filter -->
+        <div class="global-filter-bar">
+          <span class="gf-label">Date Range</span>
+          <button class="gf-btn" data-grange="today" onclick="setGlobalRange('today')">Today</button>
+          <button class="gf-btn" data-grange="yesterday" onclick="setGlobalRange('yesterday')">Yesterday</button>
+          <button class="gf-btn" data-grange="7d" onclick="setGlobalRange('7d')">7 Days</button>
+          <button class="gf-btn" data-grange="30d" onclick="setGlobalRange('30d')">30 Days</button>
+          <button class="gf-btn" data-grange="60d" onclick="setGlobalRange('60d')">60 Days</button>
+          <button class="gf-btn" data-grange="90d" onclick="setGlobalRange('90d')">90 Days</button>
+          <button class="gf-btn active" data-grange="3m" onclick="setGlobalRange('3m')">3 Months</button>
+          <button class="gf-btn" data-grange="6m" onclick="setGlobalRange('6m')">6 Months</button>
+          <button class="gf-btn" data-grange="month" onclick="setGlobalRange('month')">This Month</button>
+          <button class="gf-btn" data-grange="lastmonth" onclick="setGlobalRange('lastmonth')">Prev Month</button>
+          <button class="gf-btn" data-grange="all" onclick="setGlobalRange('all')">All Time</button>
+          <button class="gf-btn" data-grange="custom" onclick="setGlobalRange('custom')">Custom</button>
+          <div class="gf-custom-range" id="gf-custom-range">
+            <input type="date" class="gf-date-input" id="gf-from" onchange="refreshGlobalRange()">
+            <span style="color:var(--text3);font-size:11px;font-family:var(--mono)">→</span>
+            <input type="date" class="gf-date-input" id="gf-to" onchange="refreshGlobalRange()">
+          </div>
+          <span class="gf-active-label" id="gf-active-label"></span>
+        </div>
+
         <!-- KPI -->
         <div class="stats-grid">
           <div class="stat-card card c1"><div class="stat-top-bar"></div><div class="stat-label">Total Calls</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub" id="stat-today">—</div></div>
@@ -895,21 +954,6 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 
         <!-- Platform Summary -->
         <div class="sec-label">Platform Summary</div>
-        <div class="agent-range-bar">
-          <button class="afl-btn active" data-prange="all" onclick="setPlatformRange('all')">All Time</button>
-          <button class="afl-btn" data-prange="today" onclick="setPlatformRange('today')">Today</button>
-          <button class="afl-btn" data-prange="yesterday" onclick="setPlatformRange('yesterday')">Yesterday</button>
-          <button class="afl-btn" data-prange="7d" onclick="setPlatformRange('7d')">7 Days</button>
-          <button class="afl-btn" data-prange="30d" onclick="setPlatformRange('30d')">30 Days</button>
-          <button class="afl-btn" data-prange="month" onclick="setPlatformRange('month')">This Month</button>
-          <button class="afl-btn" data-prange="lastmonth" onclick="setPlatformRange('lastmonth')">Prev Month</button>
-          <button class="afl-btn" data-prange="custom" onclick="setPlatformRange('custom')">Custom</button>
-          <div class="afl-date-range" id="pfl-custom-range">
-            <input type="date" class="afl-date-input" id="pfl-from" onchange="updatePlatformGrid()">
-            <span style="color:var(--text3);font-size:11px;font-family:var(--mono)">to</span>
-            <input type="date" class="afl-date-input" id="pfl-to" onchange="updatePlatformGrid()">
-          </div>
-        </div>
         <div class="platform-grid" id="platform-grid"></div>
 
       </div><!-- /dash-main -->
@@ -981,6 +1025,9 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <button class="afl-btn" data-range2="yesterday" onclick="setAgentRange2('yesterday')">Yesterday</button>
             <button class="afl-btn" data-range2="7d" onclick="setAgentRange2('7d')">7 Days</button>
             <button class="afl-btn" data-range2="30d" onclick="setAgentRange2('30d')">30 Days</button>
+            <button class="afl-btn" data-range2="60d" onclick="setAgentRange2('60d')">60 Days</button>
+            <button class="afl-btn" data-range2="90d" onclick="setAgentRange2('90d')">90 Days</button>
+            <button class="afl-btn" data-range2="6m" onclick="setAgentRange2('6m')">6 Months</button>
             <button class="afl-btn" data-range2="month" onclick="setAgentRange2('month')">This Month</button>
             <button class="afl-btn" data-range2="lastmonth" onclick="setAgentRange2('lastmonth')">Prev Month</button>
             <button class="afl-btn" data-range2="custom" onclick="setAgentRange2('custom')">Custom</button>
@@ -1312,8 +1359,7 @@ const PROXY      = 'https://nc-proxy.mohsin-kuiperz.workers.dev/?url=';
 const BASE_PATH  = '/Customer Support/Call Recordings/WhatsApp Call';
 const CACHE_KEY  = 'wc_recordings_cache_v2';
 const CACHE_TS   = 'wc_recordings_ts_v2';
-const CACHE_TTL  = 4 * 60 * 1000;          // আজকের data: 4 মিনিট
-const CACHE_OLD_TTL = 24 * 60 * 60 * 1000; // পুরনো data: 24 ঘণ্টা
+const CACHE_TTL  = 5 * 60 * 1000;
 const STATUS_URL = 'https://wa-request-handler.mohsin-kuiperz.workers.dev/agent-status';
 const ONLINE_MS  = 7 * 60 * 1000; // 7 minutes
 
@@ -1325,6 +1371,7 @@ let currentPage = 1, rowsPerPage = 20;
 let activeAgentFilter = '';
 let agentDateRange2 = 'all';
 let platformDateRange = 'all';
+let globalDateRange = '3m'; // default: 3 months
 let onlineTimer = null, _agentStatus = [];
 let trendMode = '7d';
 let currentAudioUrl = '';
@@ -1399,8 +1446,6 @@ async function connect() {
   closeSettings(); await loadAllData();
 }
 function disconnect() {
-  // পুরনো দিনের সব cache clear করো
-  Object.keys(localStorage).filter(k=>k.startsWith('wc_old_')).forEach(k=>localStorage.removeItem(k));
   ['nc_url','nc_user','nc_pass',CACHE_KEY,CACHE_TS].forEach(k=>localStorage.removeItem(k));
   NC_URL=NC_USER=NC_PASS=''; allRecordings=[]; filtered=[];
   renderTable(); updateStats(); updatePlatformGrid(); updateAgentGrid2(); updateCharts();
@@ -1434,56 +1479,28 @@ function parseEntries(xml) {
 // ── Load data ──────────────────────────────────────────────────
 async function loadAllData() {
   setStatus('Scanning...','loading'); allRecordings=[];
+  const ts=parseInt(localStorage.getItem(CACHE_TS)||'0');
+  if (Date.now()-ts<CACHE_TTL) {
+    try {
+      const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'[]');
+      if (c.length) { allRecordings=c; finishLoad(); setStatus('Connected (cached) — '+allRecordings.length+' recordings','ok'); startAutoSync(); return; }
+    } catch(e){}
+  }
   await fetchFreshData();
   startAutoSync();
 }
 
-// আজকের date string: '2026/04/27'
-function todayPath(){const n=new Date();return n.getFullYear()+'/'+(String(n.getMonth()+1).padStart(2,'0'))+'/'+String(n.getDate()).padStart(2,'0');}
-
-// পুরনো দিনের cache key
-function oldCacheKey(dateStr){return 'wc_old_'+dateStr.replace(/\//g,'-');}
-
 async function fetchFreshData(){
   try {
     allRecordings=[];
-    const today=todayPath(); // e.g. '2026/04/27'
-    const todayYear=today.split('/')[0];
-    const todayMonth=today.split('/')[1];
-    const todayDay=today.split('/')[2];
-
-    // ── সব year/month/day list করো ──
+    // Sort descending — newest year/month/day first for fast progressive display
     const years=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
-
     for(const y of years){
-      const months=parseEntries(await propfind(NC_DIR+'/'+y.name,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
-      for(const m of months){
-        const days=parseEntries(await propfind(NC_DIR+'/'+y.name+'/'+m.name,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
-        for(const d of days){
-          const dateStr=y.name+'/'+m.name+'/'+d.name;
-          const isToday=(y.name===todayYear && m.name===todayMonth && d.name===todayDay);
-
-          if(!isToday){
-            // ── পুরনো দিন: cache থেকে নাও ──
-            const ck=oldCacheKey(dateStr);
-            const cached=localStorage.getItem(ck);
-            if(cached){
-              try{const recs=JSON.parse(cached);allRecordings.push(...recs);}catch(e){}
-              continue; // Nextcloud hit করবো না
-            }
-            // cache নেই — একবার fetch করে রাখো
-            const recs=await loadDay(y.name,m.name,d.name);
-            try{localStorage.setItem(ck,JSON.stringify(recs));}catch(e){}
-            allRecordings.push(...recs);
-          } else {
-            // ── আজকের দিন: সবসময় fresh ──
-            const recs=await loadDay(y.name,m.name,d.name);
-            allRecordings.push(...recs);
-          }
-          if(allRecordings.length>0){finishLoad();setStatus('Loading... '+allRecordings.length+' recordings','loading');}
-        }
-      }
+      const yRecs=await loadYear(y.name);
+      allRecordings.push(...yRecs);
+      if(allRecordings.length>0){finishLoad();setStatus('Loading... '+allRecordings.length+' recordings','loading');}
     }
+    try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
     finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
   } catch(err){setStatus('Error: '+err.message,'error');}
 }
@@ -1491,21 +1508,18 @@ async function fetchFreshData(){
 let _syncTimer=null;
 function startAutoSync(){
   if(_syncTimer)clearInterval(_syncTimer);
-  // প্রতি ৪ মিনিটে শুধু আজকের data refresh করো
+  // Re-sync every 5 minutes automatically
   _syncTimer=setInterval(async function(){
     if(!NC_URL)return;
     try{
-      const today=todayPath();
-      const [ty,tm,td]=today.split('/');
-      const todayRecs=await loadDay(ty,tm,td);
-      // আজকের বাদে বাকি সব রেখে দাও
-      const otherRecs=allRecordings.filter(r=>{
-        const d=r.date||'';
-        // date format: 'YYYY-MM-DD' or path based
-        const dp=d.replace(/-/g,'/');
-        return !dp.startsWith(today);
-      });
-      allRecordings=[...todayRecs,...otherRecs];
+      const freshYear=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name))[0];
+      if(!freshYear)return;
+      // Load only the most recent year to catch new recordings fast
+      const newRecs=await loadYear(freshYear.name);
+      // Merge: keep old records from older years, replace current year's
+      const otherRecs=allRecordings.filter(r=>{const d=r.date||'';return!d.startsWith(freshYear.name);});
+      allRecordings=[...newRecs,...otherRecs];
+      try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
       finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
     }catch(e){}
   }, CACHE_TTL);
@@ -1580,6 +1594,7 @@ async function checkMediaType(path,agent,file){// Check if mp4 exists for this r
 const mp4path=path+'/'+file.replace('.json','.mp4');try{const r=await fetch(PROXY+encodeURIComponent(davUrl(mp4path)),{method:'HEAD',headers:{'Authorization':authHdr()}});if(r.ok)return mp4path;}catch(e){}return null;}
 
 function finishLoad() {
+  _updateGlobalLabel();
   updateStats(); updateCharts(); updateTrendChart();
   updatePlatformGrid(); updateAgentGrid2();
   populateAgentFilter(); applyFilters();
@@ -1593,12 +1608,13 @@ function finishLoad() {
 // ── Stats ──────────────────────────────────────────────────────
 function fmtDur(sec){if(!sec)return'0s';const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=Math.floor(sec%60);if(h)return h+'h '+m+'m';if(m)return m+'m '+s+'s';return s+'s';}
 function updateStats(){
+  const recs=getGlobalFiltered();
   const today=new Date().toISOString().slice(0,10);
-  const tc=allRecordings.filter(r=>r.date===today).length;
-  const inc=allRecordings.filter(r=>r.call_type==='Incoming').length;
-  const out=allRecordings.filter(r=>r.call_type==='Outgoing').length;
-  const tot=allRecordings.length;
-  const sec=allRecordings.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  const tc=recs.filter(r=>r.date===today).length;
+  const inc=recs.filter(r=>r.call_type==='Incoming').length;
+  const out=recs.filter(r=>r.call_type==='Outgoing').length;
+  const tot=recs.length;
+  const sec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
   const avg=tot?Math.round(sec/tot):0;
   document.getElementById('stat-total').textContent=tot;
   document.getElementById('stat-today').textContent=tc+' today';
@@ -1613,12 +1629,13 @@ function updateStats(){
 // ── Trend Chart ────────────────────────────────────────────────
 function setTrend(mode,el){trendMode=mode;document.querySelectorAll('.trend-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');updateTrendChart();}
 function updateTrendChart(){
-  if(!allRecordings.length)return;
+  const recs=getGlobalFiltered();
+  if(!recs.length)return;
   const now=new Date();let buckets=[],labels=[];
   if(trendMode==='7d'){for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);buckets.push({key:d.toISOString().slice(0,10),count:0});labels.push(d.toLocaleDateString('en',{weekday:'short'}));}}
   else if(trendMode==='30d'){for(let i=29;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);buckets.push({key:d.toISOString().slice(0,10),count:0});labels.push(i%5===0?String(d.getDate()):'');}}
   else{for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);buckets.push({key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),count:0});labels.push(d.toLocaleDateString('en',{month:'short'}));}}
-  allRecordings.forEach(r=>{const date=r.date||(r.datetime?r.datetime.slice(0,10):'');if(!date)return;const k=trendMode==='month'?date.slice(0,7):date;const b=buckets.find(b=>b.key===k);if(b)b.count++;});
+  recs.forEach(r=>{const date=r.date||(r.datetime?r.datetime.slice(0,10):'');if(!date)return;const k=trendMode==='month'?date.slice(0,7):date;const b=buckets.find(b=>b.key===k);if(b)b.count++;});
   const vals=buckets.map(b=>b.count),max=Math.max(...vals,1),W=900,H=90,P=8;
   const pts=vals.map((v,i)=>[P+(i/(vals.length-1||1))*(W-P*2),H-P-(v/max)*(H-P*2)]);
   document.getElementById('trend-line').setAttribute('d',pts.map((p,i)=>(i===0?'M'+p[0]+','+p[1]:'L'+p[0]+','+p[1])).join(' '));
@@ -1628,18 +1645,19 @@ function updateTrendChart(){
 
 // ── Charts ─────────────────────────────────────────────────────
 function updateCharts(){
-  if(!allRecordings.length)return;
+  const allRecs=getGlobalFiltered();
+  if(!allRecs.length)return;
   // Agent bar
-  const am={};allRecordings.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';am[n]=(am[n]||0)+1;});
+  const am={};allRecs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';am[n]=(am[n]||0)+1;});
   const sorted=Object.entries(am).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxA=Math.max(...sorted.map(e=>e[1]),1);
   document.getElementById('agent-bar-chart').innerHTML=sorted.map(function(e){const n=e[0],c=e[1];return '<div class="bar-item"><div class="bar-fill" style="height:'+Math.max(4,Math.round((c/maxA)*84))+'px;background:linear-gradient(180deg,var(--accent),var(--accent2));" data-val="'+c+'"></div><div class="bar-label">'+n.split(' ')[0]+'</div></div>';}).join('');
-  // Donut — all call types with percentages
-  const inc=allRecordings.filter(r=>r.call_type==='Incoming').length;
-  const out=allRecordings.filter(r=>r.call_type==='Outgoing').length;
-  const ses=allRecordings.filter(r=>r.call_type==='Session').length;
-  const mtg=allRecordings.filter(r=>r.call_type==='Meeting').length;
-  const hdl=allRecordings.filter(r=>r.call_type==='Huddle').length;
+  // Donut
+  const inc=allRecs.filter(r=>r.call_type==='Incoming').length;
+  const out=allRecs.filter(r=>r.call_type==='Outgoing').length;
+  const ses=allRecs.filter(r=>r.call_type==='Session').length;
+  const mtg=allRecs.filter(r=>r.call_type==='Meeting').length;
+  const hdl=allRecs.filter(r=>r.call_type==='Huddle').length;
   const tot=inc+out+ses+mtg+hdl||1;const circ=214;
   const inL=circ*(inc/tot),outL=circ*(out/tot);
   document.getElementById('donut-in').setAttribute('stroke-dasharray',inL+' '+(circ-inL));
@@ -1655,17 +1673,16 @@ function updateCharts(){
   if(extraLegend)extraLegend.innerHTML='';
   // Hourly
   const hours=Array(24).fill(0);
-  allRecordings.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))hours[h]++;}});
+  allRecs.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))hours[h]++;}});
   const maxH=Math.max(...hours,1);
   document.getElementById('hourly-chart').innerHTML=hours.map((c,h)=>'<div class="h-bar" style="height:'+Math.max(2,Math.round((c/maxH)*68))+'px;" data-tip="'+h+':00 — '+c+' calls"></div>').join('');
   document.getElementById('hourly-labels').innerHTML=Array.from({length:24},(_,i)=>'<div class="h-label">'+(i%4===0?i:'')+'</div>').join('');
-  // Heatmap — 8:00 to 20:00, fully responsive table layout
+  // Heatmap
   const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const HM_START=8, HM_END=20;
   const grid=Array.from({length:7},()=>Array(24).fill(0));
-  allRecordings.forEach(r=>{const dt=r.datetime||(r.date?(r.date+' '+(r.time||'00:00')):'');if(!dt)return;const d=new Date(dt);if(isNaN(d))return;grid[d.getDay()][d.getHours()]++;});
+  allRecs.forEach(r=>{const dt=r.datetime||(r.date?(r.date+' '+(r.time||'00:00')):'');if(!dt)return;const d=new Date(dt);if(isNaN(d))return;grid[d.getDay()][d.getHours()]++;});
   const maxV=Math.max(...grid.map(row=>row.slice(HM_START,HM_END)).flat(),1);
-  // Build table — cells stretch to fill available width
   let h='<table class="hm-table"><thead><tr><th class="hm-day-th"></th>';
   for(let hr=HM_START;hr<HM_END;hr++) h+='<th class="hm-hour-th">'+(hr%2===0?hr+'h':'')+'</th>';
   h+='</tr></thead><tbody>';
@@ -1684,9 +1701,61 @@ function updateCharts(){
   document.getElementById('hm-wrap').innerHTML=h;
 }
 
-// ── Platform Range (Dashboard) ────────────────────────────────────
-function setPlatformRange(r){platformDateRange=r;document.querySelectorAll('[data-prange]').forEach(b=>b.classList.toggle('active',b.dataset.prange===r));document.getElementById('pfl-custom-range').classList.toggle('show',r==='custom');updatePlatformGrid();}
-function getPlatformRangeDates(){const now=new Date();const pad=n=>String(n).padStart(2,'0');const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const today=iso(now);const r=platformDateRange;if(r==='all')return{from:'',to:''};if(r==='today')return{from:today,to:today};if(r==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);const yd=iso(y);return{from:yd,to:yd};}if(r==='7d'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:iso(d),to:today};}if(r==='30d'){const d=new Date(now);d.setDate(d.getDate()-29);return{from:iso(d),to:today};}if(r==='month')return{from:iso(new Date(now.getFullYear(),now.getMonth(),1)),to:today};if(r==='lastmonth')return{from:iso(new Date(now.getFullYear(),now.getMonth()-1,1)),to:iso(new Date(now.getFullYear(),now.getMonth(),0))};if(r==='custom')return{from:document.getElementById('pfl-from').value,to:document.getElementById('pfl-to').value};return{from:'',to:''};}
+// ── Global Date Filter (Dashboard) ────────────────────────────
+function setGlobalRange(r){
+  globalDateRange=r;
+  document.querySelectorAll('[data-grange]').forEach(b=>b.classList.toggle('active',b.dataset.grange===r));
+  document.getElementById('gf-custom-range').classList.toggle('show',r==='custom');
+  _updateGlobalLabel();
+  refreshDashboard();
+}
+function refreshGlobalRange(){ _updateGlobalLabel(); refreshDashboard(); }
+function _updateGlobalLabel(){
+  const lbl=document.getElementById('gf-active-label');
+  if(!lbl)return;
+  const{from,to}=getGlobalRangeDates();
+  if(globalDateRange==='all'||(!from&&!to)){lbl.textContent='';lbl.classList.remove('show');return;}
+  const fmt=d=>d?d.slice(5).replace('-','/'):'';;
+  lbl.textContent=from&&to?(fmt(from)+' → '+fmt(to)):from?('From '+fmt(from)):'To '+fmt(to);
+  lbl.classList.add('show');
+}
+function getGlobalRangeDates(){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const today=iso(now);
+  const r=globalDateRange;
+  if(r==='all')return{from:'',to:''};
+  if(r==='today')return{from:today,to:today};
+  if(r==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);const yd=iso(y);return{from:yd,to:yd};}
+  if(r==='7d'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:iso(d),to:today};}
+  if(r==='30d'){const d=new Date(now);d.setDate(d.getDate()-29);return{from:iso(d),to:today};}
+  if(r==='60d'){const d=new Date(now);d.setDate(d.getDate()-59);return{from:iso(d),to:today};}
+  if(r==='90d'){const d=new Date(now);d.setDate(d.getDate()-89);return{from:iso(d),to:today};}
+  if(r==='3m'){const d=new Date(now);d.setMonth(d.getMonth()-3);return{from:iso(d),to:today};}
+  if(r==='6m'){const d=new Date(now);d.setMonth(d.getMonth()-6);return{from:iso(d),to:today};}
+  if(r==='month')return{from:iso(new Date(now.getFullYear(),now.getMonth(),1)),to:today};
+  if(r==='lastmonth')return{from:iso(new Date(now.getFullYear(),now.getMonth()-1,1)),to:iso(new Date(now.getFullYear(),now.getMonth(),0))};
+  if(r==='custom')return{from:document.getElementById('gf-from').value,to:document.getElementById('gf-to').value};
+  return{from:'',to:''};
+}
+function getGlobalFiltered(){
+  const{from,to}=getGlobalRangeDates();
+  return allRecordings.filter(r=>{
+    if(from&&r.date<from)return false;
+    if(to&&r.date>to)return false;
+    return true;
+  });
+}
+function refreshDashboard(){
+  updateStats();updateCharts();updateTrendChart();
+  updatePlatformGrid();updateInsights();updateTodaySummary();
+  updateDurationDistribution();updateLeaderboard();updateQuickStats();
+}
+
+// ── Platform Range (Dashboard) — now driven by global filter ──────
+function setPlatformRange(r){platformDateRange=r;document.querySelectorAll('[data-prange]').forEach(b=>b.classList.toggle('active',b.dataset.prange===r));document.getElementById('pfl-custom-range')&&document.getElementById('pfl-custom-range').classList.toggle('show',r==='custom');updatePlatformGrid();}
+function getPlatformRangeDates(){return getGlobalRangeDates();}
 
 function updatePlatformGrid(){
   const{from,to}=getPlatformRangeDates();
@@ -1742,8 +1811,35 @@ function updatePlatformGrid(){
 }
 
 // ── Agent Range (Recordings tab) ───────────────────────────────
-function setAgentRange2(r){agentDateRange2=r;document.querySelectorAll('[data-range2]').forEach(b=>b.classList.toggle('active',b.dataset.range2===r));document.getElementById('afl-custom-range2').classList.toggle('show',r==='custom');updateAgentGrid2();}
-function getAgentRangeDates2(){const now=new Date();const pad=n=>String(n).padStart(2,'0');const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const today=iso(now);const r=agentDateRange2;if(r==='all')return{from:'',to:''};if(r==='today')return{from:today,to:today};if(r==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);const yd=iso(y);return{from:yd,to:yd};}if(r==='7d'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:iso(d),to:today};}if(r==='30d'){const d=new Date(now);d.setDate(d.getDate()-29);return{from:iso(d),to:today};}if(r==='month')return{from:iso(new Date(now.getFullYear(),now.getMonth(),1)),to:today};if(r==='lastmonth')return{from:iso(new Date(now.getFullYear(),now.getMonth()-1,1)),to:iso(new Date(now.getFullYear(),now.getMonth(),0))};if(r==='custom')return{from:document.getElementById('afl-from2').value,to:document.getElementById('afl-to2').value};return{from:'',to:''};}
+function setAgentRange2(r){
+  agentDateRange2=r;
+  document.querySelectorAll('[data-range2]').forEach(b=>b.classList.toggle('active',b.dataset.range2===r));
+  document.getElementById('afl-custom-range2').classList.toggle('show',r==='custom');
+  // Sync recordings table date filter
+  const{from,to}=getAgentRangeDates2WithNew(r);
+  document.getElementById('filter-date-from').value=from;
+  document.getElementById('filter-date-to').value=to;
+  updateAgentGrid2();
+  applyFilters();
+}
+function getAgentRangeDates2WithNew(r){
+  const now=new Date();const pad=n=>String(n).padStart(2,'0');
+  const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const today=iso(now);
+  if(r==='all')return{from:'',to:''};
+  if(r==='today')return{from:today,to:today};
+  if(r==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);const yd=iso(y);return{from:yd,to:yd};}
+  if(r==='7d'){const d=new Date(now);d.setDate(d.getDate()-6);return{from:iso(d),to:today};}
+  if(r==='30d'){const d=new Date(now);d.setDate(d.getDate()-29);return{from:iso(d),to:today};}
+  if(r==='60d'){const d=new Date(now);d.setDate(d.getDate()-59);return{from:iso(d),to:today};}
+  if(r==='90d'){const d=new Date(now);d.setDate(d.getDate()-89);return{from:iso(d),to:today};}
+  if(r==='6m'){const d=new Date(now);d.setMonth(d.getMonth()-6);return{from:iso(d),to:today};}
+  if(r==='month')return{from:iso(new Date(now.getFullYear(),now.getMonth(),1)),to:today};
+  if(r==='lastmonth')return{from:iso(new Date(now.getFullYear(),now.getMonth()-1,1)),to:iso(new Date(now.getFullYear(),now.getMonth(),0))};
+  if(r==='custom')return{from:document.getElementById('afl-from2').value,to:document.getElementById('afl-to2').value};
+  return{from:'',to:''};
+}
+function getAgentRangeDates2(){return getAgentRangeDates2WithNew(agentDateRange2);}
 function refreshAgentGrid2(){updateAgentGrid2();}
 function updateAgentGrid2(){
   const{from,to}=getAgentRangeDates2();
@@ -2056,8 +2152,8 @@ document.addEventListener('click',function(e){
 
 // ── Key Insights ───────────────────────────────────────────────
 function updateInsights(){
-  if(!allRecordings.length){document.getElementById('insights-content').innerHTML='<span>No data yet.</span>';return;}
-  const recs=allRecordings;
+  const recs=getGlobalFiltered();
+  if(!recs.length){document.getElementById('insights-content').innerHTML='<span>No data yet.</span>';return;}
   const tot=recs.length;
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const byday=Array(7).fill(0);
@@ -2121,25 +2217,21 @@ function updateTodaySummary(){
 
 // ── Quick Stats (sidebar) ───────────────────────────────────────
 function updateQuickStats(){
+  const recs=getGlobalFiltered();
   const now=new Date();
   const pad=n=>String(n).padStart(2,'0');
   const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
   const today=iso(now);
-  // Week start (Monday)
   const weekStart=new Date(now);weekStart.setDate(now.getDate()-((now.getDay()+6)%7));
   const weekStartStr=iso(weekStart);
-  // Month start
   const monthStart=iso(new Date(now.getFullYear(),now.getMonth(),1));
-
-  const todayCount=allRecordings.filter(r=>r.date===today).length;
-  const weekCount=allRecordings.filter(r=>r.date>=weekStartStr&&r.date<=today).length;
-  const monthCount=allRecordings.filter(r=>r.date>=monthStart&&r.date<=today).length;
-  // Days elapsed this month
+  const todayCount=recs.filter(r=>r.date===today).length;
+  const weekCount=recs.filter(r=>r.date>=weekStartStr&&r.date<=today).length;
+  const monthCount=recs.filter(r=>r.date>=monthStart&&r.date<=today).length;
   const daysElapsed=now.getDate();
   const avgPerDay=daysElapsed>0?Math.round(monthCount/daysElapsed):0;
-  const videoCount=allRecordings.filter(r=>r._mp4Path).length;
+  const videoCount=recs.filter(r=>r._mp4Path).length;
   const onlineCount=_agentStatus.filter(a=>a.online).length;
-
   const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
   set('qs-today',todayCount);
   set('qs-week',weekCount);
@@ -2151,7 +2243,8 @@ function updateQuickStats(){
 
 // ── Duration Distribution ───────────────────────────────────────
 function updateDurationDistribution(){
-  if(!allRecordings.length)return;
+  const recs=getGlobalFiltered();
+  if(!recs.length)return;
   const buckets=[
     {label:'<30s',max:30,count:0},
     {label:'30s–1m',max:60,count:0},
@@ -2162,7 +2255,7 @@ function updateDurationDistribution(){
     {label:'20–30m',max:1800,count:0},
     {label:'>30m',max:Infinity,count:0}
   ];
-  allRecordings.forEach(r=>{
+  recs.forEach(r=>{
     const sec=r.duration_seconds||0;
     for(const b of buckets){if(sec<b.max){b.count++;break;}}
   });
@@ -2175,11 +2268,11 @@ function updateDurationDistribution(){
   ).join('');
 }
 
-// ── Agent Leaderboard ───────────────────────────────────────────
 function updateLeaderboard(){
-  if(!allRecordings.length)return;
+  const recs=getGlobalFiltered();
+  if(!recs.length)return;
   const byagent={};
-  allRecordings.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';byagent[n]=(byagent[n]||0)+1;});
+  recs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';byagent[n]=(byagent[n]||0)+1;});
   const sorted=Object.entries(byagent).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const maxC=sorted[0]?sorted[0][1]:1;
   const rankClass=['top1','top2','top3'];
