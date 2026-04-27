@@ -1312,7 +1312,8 @@ const PROXY      = 'https://nc-proxy.mohsin-kuiperz.workers.dev/?url=';
 const BASE_PATH  = '/Customer Support/Call Recordings/WhatsApp Call';
 const CACHE_KEY  = 'wc_recordings_cache_v2';
 const CACHE_TS   = 'wc_recordings_ts_v2';
-const CACHE_TTL  = 5 * 60 * 1000;
+const CACHE_TTL  = 4 * 60 * 1000;          // আজকের data: 4 মিনিট
+const CACHE_OLD_TTL = 24 * 60 * 60 * 1000; // পুরনো data: 24 ঘণ্টা
 const STATUS_URL = 'https://wa-request-handler.mohsin-kuiperz.workers.dev/agent-status';
 const ONLINE_MS  = 7 * 60 * 1000; // 7 minutes
 
@@ -1398,6 +1399,8 @@ async function connect() {
   closeSettings(); await loadAllData();
 }
 function disconnect() {
+  // পুরনো দিনের সব cache clear করো
+  Object.keys(localStorage).filter(k=>k.startsWith('wc_old_')).forEach(k=>localStorage.removeItem(k));
   ['nc_url','nc_user','nc_pass',CACHE_KEY,CACHE_TS].forEach(k=>localStorage.removeItem(k));
   NC_URL=NC_USER=NC_PASS=''; allRecordings=[]; filtered=[];
   renderTable(); updateStats(); updatePlatformGrid(); updateAgentGrid2(); updateCharts();
@@ -1431,28 +1434,56 @@ function parseEntries(xml) {
 // ── Load data ──────────────────────────────────────────────────
 async function loadAllData() {
   setStatus('Scanning...','loading'); allRecordings=[];
-  const ts=parseInt(localStorage.getItem(CACHE_TS)||'0');
-  if (Date.now()-ts<CACHE_TTL) {
-    try {
-      const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'[]');
-      if (c.length) { allRecordings=c; finishLoad(); setStatus('Connected (cached) — '+allRecordings.length+' recordings','ok'); startAutoSync(); return; }
-    } catch(e){}
-  }
   await fetchFreshData();
   startAutoSync();
 }
 
+// আজকের date string: '2026/04/27'
+function todayPath(){const n=new Date();return n.getFullYear()+'/'+(String(n.getMonth()+1).padStart(2,'0'))+'/'+String(n.getDate()).padStart(2,'0');}
+
+// পুরনো দিনের cache key
+function oldCacheKey(dateStr){return 'wc_old_'+dateStr.replace(/\//g,'-');}
+
 async function fetchFreshData(){
   try {
     allRecordings=[];
-    // Sort descending — newest year/month/day first for fast progressive display
+    const today=todayPath(); // e.g. '2026/04/27'
+    const todayYear=today.split('/')[0];
+    const todayMonth=today.split('/')[1];
+    const todayDay=today.split('/')[2];
+
+    // ── সব year/month/day list করো ──
     const years=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
+
     for(const y of years){
-      const yRecs=await loadYear(y.name);
-      allRecordings.push(...yRecs);
-      if(allRecordings.length>0){finishLoad();setStatus('Loading... '+allRecordings.length+' recordings','loading');}
+      const months=parseEntries(await propfind(NC_DIR+'/'+y.name,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
+      for(const m of months){
+        const days=parseEntries(await propfind(NC_DIR+'/'+y.name+'/'+m.name,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
+        for(const d of days){
+          const dateStr=y.name+'/'+m.name+'/'+d.name;
+          const isToday=(y.name===todayYear && m.name===todayMonth && d.name===todayDay);
+
+          if(!isToday){
+            // ── পুরনো দিন: cache থেকে নাও ──
+            const ck=oldCacheKey(dateStr);
+            const cached=localStorage.getItem(ck);
+            if(cached){
+              try{const recs=JSON.parse(cached);allRecordings.push(...recs);}catch(e){}
+              continue; // Nextcloud hit করবো না
+            }
+            // cache নেই — একবার fetch করে রাখো
+            const recs=await loadDay(y.name,m.name,d.name);
+            try{localStorage.setItem(ck,JSON.stringify(recs));}catch(e){}
+            allRecordings.push(...recs);
+          } else {
+            // ── আজকের দিন: সবসময় fresh ──
+            const recs=await loadDay(y.name,m.name,d.name);
+            allRecordings.push(...recs);
+          }
+          if(allRecordings.length>0){finishLoad();setStatus('Loading... '+allRecordings.length+' recordings','loading');}
+        }
+      }
     }
-    try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
     finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
   } catch(err){setStatus('Error: '+err.message,'error');}
 }
@@ -1460,18 +1491,21 @@ async function fetchFreshData(){
 let _syncTimer=null;
 function startAutoSync(){
   if(_syncTimer)clearInterval(_syncTimer);
-  // Re-sync every 5 minutes automatically
+  // প্রতি ৪ মিনিটে শুধু আজকের data refresh করো
   _syncTimer=setInterval(async function(){
     if(!NC_URL)return;
     try{
-      const freshYear=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name))[0];
-      if(!freshYear)return;
-      // Load only the most recent year to catch new recordings fast
-      const newRecs=await loadYear(freshYear.name);
-      // Merge: keep old records from older years, replace current year's
-      const otherRecs=allRecordings.filter(r=>{const d=r.date||'';return!d.startsWith(freshYear.name);});
-      allRecordings=[...newRecs,...otherRecs];
-      try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
+      const today=todayPath();
+      const [ty,tm,td]=today.split('/');
+      const todayRecs=await loadDay(ty,tm,td);
+      // আজকের বাদে বাকি সব রেখে দাও
+      const otherRecs=allRecordings.filter(r=>{
+        const d=r.date||'';
+        // date format: 'YYYY-MM-DD' or path based
+        const dp=d.replace(/-/g,'/');
+        return !dp.startsWith(today);
+      });
+      allRecordings=[...todayRecs,...otherRecs];
       finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
     }catch(e){}
   }, CACHE_TTL);
