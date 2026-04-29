@@ -1484,6 +1484,10 @@ function parseEntries(xml) {
 const INDEX_START_YEAR  = 2026;
 const INDEX_START_MONTH = 1; // January
 const CACHE_MONTHS      = 3; // localStorage এ শুধু last 3 মাস রাখব
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// month number থেকে folder name বানায়: 4 → "April 2026"
+function _monthFolder(y, mNum) { return MONTH_NAMES[mNum-1] + ' ' + y; }
 
 // সব months generate করে যেগুলোর index file থাকতে পারে
 function _allMonthKeys() {
@@ -1491,7 +1495,7 @@ function _allMonthKeys() {
   const keys = [];
   let y = INDEX_START_YEAR, m = INDEX_START_MONTH;
   while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth()+1)) {
-    keys.push({ y, m: String(m).padStart(2,'0') });
+    keys.push({ y, mNum: m, m: String(m).padStart(2,'0') });
     m++; if (m > 12) { m = 1; y++; }
   }
   return keys.reverse(); // newest first
@@ -1504,8 +1508,10 @@ function _recentMonthKeys(n) { return _allMonthKeys().slice(0, n); }
 function _monthCacheKey(y, m) { return `wc_month_${y}_${m}`; }
 function _monthCacheTs(y, m)  { return `wc_month_ts_${y}_${m}`; }
 
-async function fetchMonthIndex(y, m, bypassCache=false) {
-  const path = `${NC_DIR}/${y}/${m}/${y}_${m}.json`;
+async function fetchMonthIndex(y, m, bypassCache=false, mNum) {
+  mNum = mNum || parseInt(m);
+  const folder = _monthFolder(y, mNum); // e.g. "April 2026"
+  const path = `${NC_DIR}/${y}/${folder}/${y}_${m}.json`;
   // Cache hit check (শুধু recent months এর জন্য)
   if (!bypassCache) {
     try {
@@ -1514,7 +1520,7 @@ async function fetchMonthIndex(y, m, bypassCache=false) {
       if (isRecent && Date.now()-ts < CACHE_TTL) {
         const cached = JSON.parse(localStorage.getItem(_monthCacheKey(y,m))||'null');
         if (cached && cached.length) {
-          cached.forEach(rec => buildRecordingPaths(rec, y, m));
+          cached.forEach(rec => buildRecordingPaths(rec, y, mNum));
           return cached;
         }
       }
@@ -1527,7 +1533,7 @@ async function fetchMonthIndex(y, m, bypassCache=false) {
   try {
     const arr = await r.json();
     if (!Array.isArray(arr)) return [];
-    arr.forEach(rec => buildRecordingPaths(rec, y, m));
+    arr.forEach(rec => buildRecordingPaths(rec, y, mNum));
     // শুধু last CACHE_MONTHS মাস cache করি
     const isRecent = _recentMonthKeys(CACHE_MONTHS).some(k=>k.y==y&&k.m==m);
     if (isRecent) {
@@ -1535,7 +1541,6 @@ async function fetchMonthIndex(y, m, bypassCache=false) {
         localStorage.setItem(_monthCacheKey(y,m), JSON.stringify(arr));
         localStorage.setItem(_monthCacheTs(y,m), String(Date.now()));
       } catch(e) {
-        // localStorage full হলে পুরনো মাসগুলো মুছে ফেলি
         _pruneOldMonthCache();
       }
     }
@@ -1555,13 +1560,14 @@ function _pruneOldMonthCache() {
 }
 
 // filename + date + agent থেকে recording paths বানায়
-function buildRecordingPaths(rec, y, m) {
+function buildRecordingPaths(rec, y, mNum) {
   const agent = rec._agentFolder || rec.agent_name || '';
   const date  = rec.date || '';
   const day   = date.slice(8, 10);
   const fn    = rec.filename || '';
   if (!fn || !day || !agent) return;
-  const folder = `${NC_DIR}/${y}/${m}/${day}/${agent}`;
+  const monthFolder = _monthFolder(y, mNum);
+  const folder = `${NC_DIR}/${y}/${monthFolder}/${day}/${agent}`;
   const base   = fn.replace(/\.(wav|mp4|json)$/i, '');
   if (fn.toLowerCase().endsWith('.mp4') || rec.format === 'mp4' || rec.mode === 'screen_audio') {
     rec._mp4Path = `${folder}/${base}.mp4`;
@@ -1569,6 +1575,21 @@ function buildRecordingPaths(rec, y, m) {
   } else {
     rec._wavPath = `${folder}/${base}.wav`;
     rec._mp4Path = null;
+  }
+  // platform না থাকলে filename থেকে guess করি
+  if (!rec.platform) {
+    const fl = fn.toLowerCase();
+    if (fl.includes('whatsapp'))      rec.platform = 'WhatsApp';
+    else if (fl.includes('zoiper'))   rec.platform = 'ZoiPer5';
+    else if (fl.includes('ultraviewer')) rec.platform = 'UltraViewer';
+    else if (fl.includes('teamviewer'))  rec.platform = 'TeamViewer';
+    else if (fl.includes('anydesk'))     rec.platform = 'AnyDesk';
+    else if (fl.includes('zoom'))        rec.platform = 'Zoom';
+    else if (fl.includes('meet'))        rec.platform = 'GoogleMeet';
+    else if (fl.includes('teams'))       rec.platform = 'Teams';
+    else if (fl.includes('slack'))       rec.platform = 'Slack';
+    else if (fl.includes('jitsi'))       rec.platform = 'Jitsi';
+    else rec.platform = 'WhatsApp'; // default
   }
 }
 
@@ -1595,7 +1616,7 @@ async function fetchFreshData() {
     allRecordings = [];
     const months = _allMonthKeys();
     // সব months parallel এ fetch — cache hit হলে instant, miss হলে network
-    const results = await Promise.allSettled(months.map(({y,m}) => fetchMonthIndex(y,m)));
+    const results = await Promise.allSettled(months.map(({y,m,mNum}) => fetchMonthIndex(y,m,false,mNum)));
     results.forEach(r => { if (r.status==='fulfilled') allRecordings.push(...r.value); });
     _sortRecs(allRecordings);
     finishLoad();
@@ -1620,7 +1641,7 @@ function startAutoSync(){
       const y=now.getFullYear();
       const m=String(now.getMonth()+1).padStart(2,'0');
       // bypassCache=true — সবসময় fresh fetch করি
-      const freshRecs = await fetchMonthIndex(y, m, true);
+      const freshRecs = await fetchMonthIndex(y, m, true, now.getMonth()+1);
       if(!freshRecs.length) return;
       const newCount = freshRecs.length;
       if(newCount === _lastMonthCount) return; // কোনো পরিবর্তন নেই
