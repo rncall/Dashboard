@@ -1357,9 +1357,8 @@ auth.onAuthStateChanged(async function(user){
 });
 const PROXY      = 'https://nc-proxy.mohsin-kuiperz.workers.dev/?url=';
 const BASE_PATH  = '/Customer Support/Call Recordings/WhatsApp Call';
-const CACHE_KEY  = 'wc_recordings_cache_v2';
-const CACHE_TS   = 'wc_recordings_ts_v2';
-const CACHE_TTL  = 5 * 60 * 1000;
+const CACHE_KEY  = 'wc_recordings_cache_v3'; // v3: per-month cache
+const CACHE_TTL  = 60 * 1000; // 60s — fast sync interval
 const STATUS_URL = 'https://wa-request-handler.mohsin-kuiperz.workers.dev/agent-status';
 const ONLINE_MS  = 7 * 60 * 1000; // 7 minutes
 
@@ -1446,7 +1445,9 @@ async function connect() {
   closeSettings(); await loadAllData();
 }
 function disconnect() {
-  ['nc_url','nc_user','nc_pass',CACHE_KEY,CACHE_TS].forEach(k=>localStorage.removeItem(k));
+  ['nc_url','nc_user','nc_pass',CACHE_KEY].forEach(k=>localStorage.removeItem(k));
+  // per-month cache গুলোও মুছি
+  Object.keys(localStorage).filter(k=>k.startsWith('wc_month_')).forEach(k=>localStorage.removeItem(k));
   NC_URL=NC_USER=NC_PASS=''; allRecordings=[]; filtered=[];
   renderTable(); updateStats(); updatePlatformGrid(); updateAgentGrid2(); updateCharts();
   setStatus('NOT CONNECTED',''); closeSettings(); setTimeout(openSettings,200);
@@ -1476,97 +1477,168 @@ function parseEntries(xml) {
   });
 }
 
-// ── Load data ──────────────────────────────────────────────────
-async function loadAllData() {
-  setStatus('Scanning...','loading'); allRecordings=[];
-  const ts=parseInt(localStorage.getItem(CACHE_TS)||'0');
-  if (Date.now()-ts<CACHE_TTL) {
-    try {
-      const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'[]');
-      if (c.length) { allRecordings=c; finishLoad(); setStatus('Connected (cached) — '+allRecordings.length+' recordings','ok'); startAutoSync(); return; }
-    } catch(e){}
+// ── Load data (Monthly Index Mode) ────────────────────────────
+// নতুন strategy: প্রতি মাসের জন্য একটাই JSON index file পড়ে।
+// 2026_04.json format: NDJSON — প্রতি লাইনে একটা recording object।
+// ──────────────────────────────────────────────────────────────
+const INDEX_START_YEAR  = 2026;
+const INDEX_START_MONTH = 1; // January
+const CACHE_MONTHS      = 3; // localStorage এ শুধু last 3 মাস রাখব
+
+// সব months generate করে যেগুলোর index file থাকতে পারে
+function _allMonthKeys() {
+  const now = new Date();
+  const keys = [];
+  let y = INDEX_START_YEAR, m = INDEX_START_MONTH;
+  while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth()+1)) {
+    keys.push({ y, m: String(m).padStart(2,'0') });
+    m++; if (m > 12) { m = 1; y++; }
   }
+  return keys.reverse(); // newest first
+}
+
+// Last N months এর keys
+function _recentMonthKeys(n) { return _allMonthKeys().slice(0, n); }
+
+// Per-month localStorage key
+function _monthCacheKey(y, m) { return `wc_month_${y}_${m}`; }
+function _monthCacheTs(y, m)  { return `wc_month_ts_${y}_${m}`; }
+
+async function fetchMonthIndex(y, m, bypassCache=false) {
+  const path = `${NC_DIR}/${y}/${m}/${y}_${m}.json`;
+  // Cache hit check (শুধু recent months এর জন্য)
+  if (!bypassCache) {
+    try {
+      const ts = parseInt(localStorage.getItem(_monthCacheTs(y,m))||'0');
+      const isRecent = _recentMonthKeys(CACHE_MONTHS).some(k=>k.y==y&&k.m==m);
+      if (isRecent && Date.now()-ts < CACHE_TTL) {
+        const cached = JSON.parse(localStorage.getItem(_monthCacheKey(y,m))||'null');
+        if (cached && cached.length) {
+          cached.forEach(rec => buildRecordingPaths(rec, y, m));
+          return cached;
+        }
+      }
+    } catch(e) {}
+  }
+  const r = await fetch(PROXY + encodeURIComponent(davUrl(path)), {
+    mode: 'cors', headers: { 'Authorization': authHdr() }
+  });
+  if (!r.ok) return [];
+  try {
+    const arr = await r.json();
+    if (!Array.isArray(arr)) return [];
+    arr.forEach(rec => buildRecordingPaths(rec, y, m));
+    // শুধু last CACHE_MONTHS মাস cache করি
+    const isRecent = _recentMonthKeys(CACHE_MONTHS).some(k=>k.y==y&&k.m==m);
+    if (isRecent) {
+      try {
+        localStorage.setItem(_monthCacheKey(y,m), JSON.stringify(arr));
+        localStorage.setItem(_monthCacheTs(y,m), String(Date.now()));
+      } catch(e) {
+        // localStorage full হলে পুরনো মাসগুলো মুছে ফেলি
+        _pruneOldMonthCache();
+      }
+    }
+    return arr;
+  } catch(e) { return []; }
+}
+
+// CACHE_MONTHS এর বাইরের পুরনো month cache মুছে ফেলে
+function _pruneOldMonthCache() {
+  const keep = new Set(_recentMonthKeys(CACHE_MONTHS).map(k=>`wc_month_${k.y}_${k.m}`));
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('wc_month_') && !key.endsWith('_ts') && !keep.has(key)) {
+      localStorage.removeItem(key);
+      localStorage.removeItem(key.replace('wc_month_','wc_month_ts_').replace(/wc_month_ts_(\d+)_(\d+)/, 'wc_month_ts_$1_$2'));
+    }
+  });
+}
+
+// filename + date + agent থেকে recording paths বানায়
+function buildRecordingPaths(rec, y, m) {
+  const agent = rec._agentFolder || rec.agent_name || '';
+  const date  = rec.date || '';
+  const day   = date.slice(8, 10);
+  const fn    = rec.filename || '';
+  if (!fn || !day || !agent) return;
+  const folder = `${NC_DIR}/${y}/${m}/${day}/${agent}`;
+  const base   = fn.replace(/\.(wav|mp4|json)$/i, '');
+  if (fn.toLowerCase().endsWith('.mp4') || rec.format === 'mp4' || rec.mode === 'screen_audio') {
+    rec._mp4Path = `${folder}/${base}.mp4`;
+    rec._wavPath = `${folder}/${base}.wav`;
+  } else {
+    rec._wavPath = `${folder}/${base}.wav`;
+    rec._mp4Path = null;
+  }
+}
+
+function _sortRecs(arr) {
+  arr.sort((a,b)=>{
+    const da=a.datetime||(a.date||'')+'T'+(a.time||'00:00');
+    const db=b.datetime||(b.date||'')+'T'+(b.time||'00:00');
+    return db.localeCompare(da);
+  });
+}
+
+async function loadAllData() {
+  setStatus('Loading...','loading'); allRecordings=[];
+  // পুরনো flat cache format পরিষ্কার করি (v2 → v3 migration)
+  localStorage.removeItem('wc_recordings_cache_v2');
+  localStorage.removeItem('wc_recordings_ts_v2');
+  _pruneOldMonthCache();
   await fetchFreshData();
   startAutoSync();
 }
 
-async function fetchFreshData(){
+async function fetchFreshData() {
   try {
-    allRecordings=[];
-    // Sort descending — newest year/month/day first for fast progressive display
-    const years=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
-    for(const y of years){
-      const yRecs=await loadYear(y.name);
-      allRecordings.push(...yRecs);
-      if(allRecordings.length>0){finishLoad();setStatus('Loading... '+allRecordings.length+' recordings','loading');}
-    }
-    try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
-    finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
-  } catch(err){setStatus('Error: '+err.message,'error');}
+    allRecordings = [];
+    const months = _allMonthKeys();
+    // সব months parallel এ fetch — cache hit হলে instant, miss হলে network
+    const results = await Promise.allSettled(months.map(({y,m}) => fetchMonthIndex(y,m)));
+    results.forEach(r => { if (r.status==='fulfilled') allRecordings.push(...r.value); });
+    _sortRecs(allRecordings);
+    finishLoad();
+    setStatus('Connected — '+allRecordings.length+' recordings','ok');
+  } catch(err) { setStatus('Error: '+err.message,'error'); }
 }
 
 let _syncTimer=null;
+let _lastMonthCount=-1; // নতুন recording detect করতে
 function startAutoSync(){
   if(_syncTimer)clearInterval(_syncTimer);
-  // Re-sync every 5 minutes automatically
+  const now=new Date();
+  _lastMonthCount = allRecordings.filter(r=>(r.date||'').startsWith(
+    `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
+  )).length;
+
+  // 60 seconds এ current month re-check
   _syncTimer=setInterval(async function(){
     if(!NC_URL)return;
     try{
-      const freshYear=parseEntries(await propfind(NC_DIR,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name))[0];
-      if(!freshYear)return;
-      // Load only the most recent year to catch new recordings fast
-      const newRecs=await loadYear(freshYear.name);
-      // Merge: keep old records from older years, replace current year's
-      const otherRecs=allRecordings.filter(r=>{const d=r.date||'';return!d.startsWith(freshYear.name);});
-      allRecordings=[...newRecs,...otherRecs];
-      try{localStorage.setItem(CACHE_KEY,JSON.stringify(allRecordings));localStorage.setItem(CACHE_TS,String(Date.now()));}catch(e){}
-      finishLoad();setStatus('Connected — '+allRecordings.length+' recordings','ok');
+      const now=new Date();
+      const y=now.getFullYear();
+      const m=String(now.getMonth()+1).padStart(2,'0');
+      // bypassCache=true — সবসময় fresh fetch করি
+      const freshRecs = await fetchMonthIndex(y, m, true);
+      if(!freshRecs.length) return;
+      const newCount = freshRecs.length;
+      if(newCount === _lastMonthCount) return; // কোনো পরিবর্তন নেই
+      _lastMonthCount = newCount;
+      // Current month replace করে merge
+      const prefix=`${y}-${m}`;
+      const otherRecs=allRecordings.filter(r=>(r.date||'').startsWith(prefix)===false);
+      allRecordings=[...freshRecs,...otherRecs];
+      _sortRecs(allRecordings);
+      finishLoad();
+      const diff = newCount - allRecordings.filter(r=>(r.date||'').startsWith(prefix)).length + freshRecs.length;
+      setStatus('Connected — '+allRecordings.length+' recordings','ok');
+      showToast('🔄 '+allRecordings.length+' recordings synced');
     }catch(e){}
-  }, CACHE_TTL);
+  }, CACHE_TTL); // 60s
 }
-async function loadYear(y){
-  const recs=[];
-  const months=parseEntries(await propfind(NC_DIR+'/'+y,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
-  (await Promise.allSettled(months.map(m=>loadMonth(y,m.name)))).forEach(r=>{if(r.status==='fulfilled')recs.push(...r.value);});
-  return recs;
-}
-async function loadMonth(y,m){
-  const recs=[];
-  const days=parseEntries(await propfind(NC_DIR+'/'+y+'/'+m,1)).filter(e=>e.isDir).sort((a,b)=>b.name.localeCompare(a.name));
-  (await Promise.allSettled(days.map(d=>loadDay(y,m,d.name)))).forEach(r=>{if(r.status==='fulfilled')recs.push(...r.value);});
-  return recs;
-}
-async function loadDay(y,m,d){const recs=[];(await Promise.allSettled(parseEntries(await propfind(NC_DIR+'/'+y+'/'+m+'/'+d,1)).filter(e=>e.isDir).map(a=>loadAgent(y,m,d,a.name)))).forEach(r=>{if(r.status==='fulfilled')recs.push(...r.value);});return recs;}
-async function loadAgent(y,m,d,agent){
-  const recs=[];
-  const path=NC_DIR+'/'+y+'/'+m+'/'+d+'/'+agent;
-  const entries=parseEntries(await propfind(path,1));
-  const mp4Files=new Set(entries.filter(e=>!e.isDir&&e.name.endsWith('.mp4')).map(e=>e.name));
-  (await Promise.allSettled(entries.filter(e=>!e.isDir&&e.name.endsWith('.json')).map(f=>loadFile(path,f.name,agent,f.size)))).forEach(r=>{
-    if(r.status==='fulfilled'&&r.value){
-      const rec=r.value;
-      const fn=rec.filename||'';
-      // 1. Standard: swap .wav → .mp4 in filename
-      const mp4Name=fn.replace(/\.wav$/i,'.mp4');
-      if(mp4Name&&mp4Files.has(mp4Name)){
-        rec._mp4Path=path+'/'+mp4Name;
-      }
-      // 2. If JSON said format=mp4/screen_audio, try _expectedMp4 filename
-      else if(rec._expectedMp4){
-        const expName=rec._expectedMp4.split('/').pop();
-        if(mp4Files.has(expName)) rec._mp4Path=path+'/'+expName;
-        else {
-          // 3. Fuzzy: find any mp4 in same folder with same base name
-          const base=fn.replace(/\.(wav|json|mp4)$/i,'').toLowerCase();
-          const match=[...mp4Files].find(m=>m.replace('.mp4','').toLowerCase()===base);
-          if(match) rec._mp4Path=path+'/'+match;
-        }
-      }
-      recs.push(rec);
-    }
-  });
-  return recs;
-}
+
+// Legacy fallback: পুরনো structure থেকে একটা নির্দিষ্ট agent folder সরাসরি পড়তে চাইলে
 async function loadFile(dir,file,agent,fileSize){
   const p=dir+'/'+file;
   const r=await fetch(PROXY+encodeURIComponent(davUrl(p)),{mode:'cors',headers:{'Authorization':authHdr()}});
@@ -1576,15 +1648,11 @@ async function loadFile(dir,file,agent,fileSize){
   meta._wavPath=base+'.wav';
   meta._mp4Path=null;
   meta._agentFolder=agent;
-  // If JSON explicitly says format is mp4 or mode is screen_audio, set expected mp4 path
   if(meta.format==='mp4'||meta.mode==='screen_audio'){
-    // Build mp4 path from filename field (replace .wav extension)
     const fn=meta.filename||'';
-    const mp4fn=fn.replace(/\.wav$/i,'.mp4');
-    meta._expectedMp4=dir+'/'+mp4fn;
+    meta._expectedMp4=dir+'/'+fn.replace(/\.wav$/i,'.mp4');
   }
   if(!meta.file_size_kb&&fileSize)meta.file_size_kb=Math.round(fileSize/1024);
-  // Detect platform from metadata or folder structure, then normalize
   if(!meta.platform){const lc=(file+' '+dir).toLowerCase();if(lc.includes('zoiper'))meta.platform='ZoiPer5';else if(lc.includes('teamviewer'))meta.platform='TeamViewer';else if(lc.includes('anydesk'))meta.platform='AnyDesk';else if(lc.includes('ultraviewer'))meta.platform='UltraViewer';else if(lc.includes('meet'))meta.platform='GoogleMeet';else if(lc.includes('jitsi'))meta.platform='Jitsi';else if(lc.includes('zoom'))meta.platform='Zoom';else if(lc.includes('teams'))meta.platform='Teams';else if(lc.includes('whatsapp'))meta.platform='WhatsApp';}
   meta.platform=normalizePlatform(meta.platform);
   return meta;
