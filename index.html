@@ -198,6 +198,8 @@ header {
 
 /* ── KPI Stats ── */
 .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+@media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(3,1fr) !important; } }
+@media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(2,1fr) !important; } }
 .stat-card { padding: 20px 22px; position: relative; overflow: hidden; }
 .stat-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--radius) var(--radius) 0 0; }
 .stat-card.c1 .stat-top-bar { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
@@ -606,7 +608,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .dur-lbl { flex: 1; font-family: var(--mono); font-size: 8px; color: var(--text3); text-align: center; }
 /* Today summary card */
 .today-card { padding: 18px 20px; margin-bottom: 14px; }
-.today-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+.today-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; }
+@media (max-width: 900px) { .today-grid { grid-template-columns: repeat(3,1fr); } }
 @media (max-width: 600px) { .today-grid { grid-template-columns: repeat(2,1fr); } }
 .today-item { text-align: center; padding: 12px 8px; background: var(--surface2); border-radius: var(--radius-sm); border: 1px solid var(--border); }
 .today-val { font-size: 22px; font-weight: 700; color: var(--accent); font-family: var(--mono); }
@@ -626,6 +629,24 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 .lb-count { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 600; flex-shrink: 0; }
 /* Keyboard shortcut hint */
 .kbd-hint { font-family: var(--mono); font-size: 10px; color: var(--text3); background: var(--surface2); border: 1px solid var(--border2); padding: 1px 5px; border-radius: 3px; }
+
+/* ── Call Connected Status badge & toggle ── */
+.conn-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 20px; white-space: nowrap;
+  cursor: pointer; border: 1px solid transparent;
+  transition: opacity .15s, transform .1s;
+  user-select: none;
+}
+.conn-badge:hover { opacity: .82; transform: scale(1.04); }
+.conn-badge.connected    { background: var(--green-bg);  color: var(--green);  border-color: var(--green-b); }
+.conn-badge.notconnected { background: var(--red-bg);    color: var(--red);    border-color: var(--red-b); }
+.conn-badge.readonly     { cursor: default; }
+.conn-badge.readonly:hover { opacity:1; transform:none; }
+.conn-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink:0; }
+.conn-badge.connected    .conn-dot { background: var(--green); }
+.conn-badge.notconnected .conn-dot { background: var(--red); }
 </style>
 </head>
 <body>
@@ -768,26 +789,15 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
 <div id="settings-overlay" class="modal-overlay" onclick="if(event.target.id==='settings-overlay')closeSettings()">
   <div id="settings-modal" class="modal-box">
     <button class="modal-close" onclick="closeSettings()">&#x2715;</button>
-    <div class="modal-title">Nextcloud Connection</div>
-    <div class="modal-sub">Credentials saved in browser. Set once — auto-connects every visit.</div>
-    <div id="settings-form">
-      <div class="settings-grid">
-        <div class="field settings-full"><label>Server URL</label><input id="nc-url" type="text" placeholder="https://cloud.example.com"></div>
-        <div class="field"><label>Username</label><input id="nc-user" type="text" placeholder="username"></div>
-        <div class="field"><label>Password / App Token</label><input id="nc-pass" type="password" placeholder="password or app token"></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn btn-primary" onclick="connect()">Connect &amp; Save</button>
-      </div>
-    </div>
-    <div id="settings-connected" style="display:none">
+    <div class="modal-title">API Connection</div>
+    <div id="settings-form" style="display:none"></div>
+    <div id="settings-connected">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <span class="connected-badge">Connected</span>
         <span style="font-family:var(--mono);font-size:12px;color:var(--text3);" id="connected-user"></span>
       </div>
       <div style="margin-top:13px;display:flex;gap:8px;">
         <button class="btn btn-sm btn-primary" onclick="closeSettings();loadAllData()">Refresh Data</button>
-        <button class="btn btn-sm btn-danger" onclick="disconnect()">Disconnect</button>
       </div>
     </div>
   </div>
@@ -840,13 +850,13 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
         <!-- Global Date Filter -->
         <div class="global-filter-bar">
           <span class="gf-label">Date Range</span>
-          <button class="gf-btn" data-grange="today" onclick="setGlobalRange('today')">Today</button>
+          <button class="gf-btn active" data-grange="today" onclick="setGlobalRange('today')">Today</button>
           <button class="gf-btn" data-grange="yesterday" onclick="setGlobalRange('yesterday')">Yesterday</button>
           <button class="gf-btn" data-grange="7d" onclick="setGlobalRange('7d')">7 Days</button>
           <button class="gf-btn" data-grange="30d" onclick="setGlobalRange('30d')">30 Days</button>
           <button class="gf-btn" data-grange="60d" onclick="setGlobalRange('60d')">60 Days</button>
           <button class="gf-btn" data-grange="90d" onclick="setGlobalRange('90d')">90 Days</button>
-          <button class="gf-btn active" data-grange="3m" onclick="setGlobalRange('3m')">3 Months</button>
+          <button class="gf-btn" data-grange="3m" onclick="setGlobalRange('3m')">3 Months</button>
           <button class="gf-btn" data-grange="6m" onclick="setGlobalRange('6m')">6 Months</button>
           <button class="gf-btn" data-grange="month" onclick="setGlobalRange('month')">This Month</button>
           <button class="gf-btn" data-grange="lastmonth" onclick="setGlobalRange('lastmonth')">Prev Month</button>
@@ -861,11 +871,12 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
         </div>
 
         <!-- KPI -->
-        <div class="stats-grid">
+        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);">
           <div class="stat-card card c1"><div class="stat-top-bar"></div><div class="stat-label">Total Calls</div><div class="stat-value" id="stat-total">—</div><div class="stat-sub" id="stat-today">—</div></div>
           <div class="stat-card card c2"><div class="stat-top-bar"></div><div class="stat-label">Incoming</div><div class="stat-value" id="stat-incoming">—</div><div class="stat-sub" id="stat-inc-pct">—</div></div>
           <div class="stat-card card c3"><div class="stat-top-bar"></div><div class="stat-label">Outgoing</div><div class="stat-value" id="stat-outgoing">—</div><div class="stat-sub" id="stat-out-pct">—</div></div>
           <div class="stat-card card c4"><div class="stat-top-bar"></div><div class="stat-label">Total Duration</div><div class="stat-value" id="stat-duration">—</div><div class="stat-sub" id="stat-avg">—</div></div>
+          <div class="stat-card card" style="border-top:3px solid var(--green);"><div class="stat-top-bar" style="background:linear-gradient(90deg,var(--green),#34d399);"></div><div class="stat-label">Connected</div><div class="stat-value" id="stat-connected" style="color:var(--green);">—</div><div class="stat-sub" id="stat-connected-sub" style="color:var(--red);">—</div></div>
         </div>
 
         <!-- Today Summary -->
@@ -876,6 +887,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <div class="today-item"><div class="today-val" id="td-peak" style="font-size:16px;">—</div><div class="today-lbl">Peak Hour</div></div>
             <div class="today-item"><div class="today-val" id="td-avg" style="font-size:16px;">—</div><div class="today-lbl">Avg Duration</div></div>
             <div class="today-item"><div class="today-val" id="td-agents">—</div><div class="today-lbl">Active Agents</div></div>
+            <div class="today-item"><div class="today-val" id="td-connected" style="color:var(--green);">—</div><div class="today-lbl">Connected</div></div>
+            <div class="today-item"><div class="today-val" id="td-notconnected" style="color:var(--red);">—</div><div class="today-lbl">Not Connected</div></div>
           </div>
         </div>
 
@@ -1020,8 +1033,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <span id="rec-agent-hint" style="color:var(--accent);font-size:10px;margin-left:6px;font-weight:400;letter-spacing:0;text-transform:none;"></span>
           </div>
           <div class="agent-range-bar" style="margin-bottom:10px;">
-            <button class="afl-btn active" data-range2="all" onclick="setAgentRange2('all')">All Time</button>
-            <button class="afl-btn" data-range2="today" onclick="setAgentRange2('today')">Today</button>
+            <button class="afl-btn" data-range2="all" onclick="setAgentRange2('all')">All Time</button>
+            <button class="afl-btn active" data-range2="today" onclick="setAgentRange2('today')">Today</button>
             <button class="afl-btn" data-range2="yesterday" onclick="setAgentRange2('yesterday')">Yesterday</button>
             <button class="afl-btn" data-range2="7d" onclick="setAgentRange2('7d')">7 Days</button>
             <button class="afl-btn" data-range2="30d" onclick="setAgentRange2('30d')">30 Days</button>
@@ -1064,30 +1077,8 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
             <option value="Meeting">Meeting</option>
             <option value="Huddle">Huddle</option>
           </select>
-          <div class="drp-wrap" id="drp-wrap">
-            <button type="button" class="drp-btn" id="drp-btn" onclick="drpToggle()">
-              <span id="drp-label">All Dates</span>
-              <span class="drp-cal-icon">&#128197;</span>
-              <span class="drp-clear" id="drp-clear" onclick="event.stopPropagation();drpClear()" title="Clear dates">&#x2715;</span>
-            </button>
-            <div class="drp-panel" id="drp-panel">
-              <div class="drp-fields">
-                <div class="drp-field">
-                  <label>Start</label>
-                  <input type="date" id="filter-date-from" onchange="drpChange()">
-                </div>
-                <div class="drp-arrow">→</div>
-                <div class="drp-field">
-                  <label>End</label>
-                  <input type="date" id="filter-date-to" onchange="drpChange()">
-                </div>
-              </div>
-              <div class="drp-actions">
-                <button class="drp-apply btn btn-primary btn-sm" onclick="drpApply()">Apply</button>
-                <button class="drp-clear-btn btn btn-ghost btn-sm" onclick="drpClear()">Clear</button>
-              </div>
-            </div>
-          </div>
+          <input type="date" id="filter-date-from" style="display:none">
+          <input type="date" id="filter-date-to" style="display:none">
           <span class="filter-clear" onclick="clearFilters()">Clear filters</span>
         </div>
 
@@ -1109,6 +1100,7 @@ tbody td { padding: 11px 14px; font-size: 14px; font-family: var(--mono); vertic
                 <th onclick="sortBy('platform')">Platform &#8597;</th>
                 <th onclick="sortBy('call_type')">Type &#8597;</th>
                 <th onclick="sortBy('duration_seconds')">Duration &#8597;</th>
+                <th onclick="sortBy('call_connected')">Status &#8597;</th>
                 <th onclick="sortBy('file_size_kb')">Size &#8597;</th>
                 <th>Actions</th>
               </tr>
@@ -1335,43 +1327,21 @@ auth.onAuthStateChanged(async function(user){
 
   applyPermissions(profile);
 
-  // Load NC credentials from Firestore (admin stored them)
-  const creds = profile.role==='admin'
-    ? null  // admin enters their own via settings
-    : await db.collection('config').doc('nextcloud').get().then(d=>d.exists?d.data():null);
-
-  if(creds && creds.url){
-    NC_URL  = creds.url;
-    NC_USER = creds.user;
-    NC_PASS = atob(creds.pass); // base64 decode
-    NC_DIR  = BASE_PATH;
-    loadAllData();
-  } else if(profile.role==='admin'){
-    // Admin: restore from localStorage or prompt
-    const u=localStorage.getItem('nc_url'),n=localStorage.getItem('nc_user'),p=localStorage.getItem('nc_pass');
-    if(u&&n&&p){ NC_URL=u;NC_USER=n;NC_PASS=p;NC_DIR=BASE_PATH;loadAllData(); }
-    else { openSettings(); }
-  } else {
-    setStatus('Nextcloud not configured. Contact admin.','');
-  }
+  loadAllData();
 });
-const PROXY      = 'https://comfortable-eagle-22.rncall.deno.net/?url=';
-const BASE_PATH  = '/Customer Support/Call Recordings/WhatsApp Call';
-const CACHE_KEY  = 'wc_recordings_cache_v3'; // v3: per-month cache
-const CACHE_TTL  = 60 * 1000; // 60s — fast sync interval
-const STATUS_URL = 'https://wa-request-handler.mohsin-kuiperz.workers.dev/agent-status';
-const ONLINE_MS  = 7 * 60 * 1000; // 7 minutes
+const API      = 'https://rncall-api.kuiperz.dev';
+const ONLINE_MS = 7 * 60 * 1000;
 
 // ── State ──────────────────────────────────────────────────────
 let allRecordings = [], filtered = [];
 let sortCol = 'datetime', sortDir = -1;
-let NC_URL = '', NC_USER = '', NC_PASS = '', NC_DIR = '';
 let currentPage = 1, rowsPerPage = 20;
 let activeAgentFilter = '';
-let agentDateRange2 = 'all';
+let agentDateRange2 = 'today';
 let platformDateRange = 'all';
-let globalDateRange = '3m'; // default: 3 months
+let globalDateRange = 'today'; // default: today
 let onlineTimer = null, _agentStatus = [];
+let currentBlobUrl = '';
 let trendMode = '7d';
 let currentAudioUrl = '';
 
@@ -1427,265 +1397,93 @@ function phoneMatch(caller, raw) {
 
 // ── Settings ───────────────────────────────────────────────────
 function openSettings() {
-  const c = !!NC_URL;
-  document.getElementById('settings-form').style.display = c ? 'none' : '';
-  document.getElementById('settings-connected').style.display = c ? '' : 'none';
-  if (c) document.getElementById('connected-user').textContent = NC_USER + ' @ ' + NC_URL.replace(/https?:\/\//,'');
+  document.getElementById('connected-user').textContent = 'rncall-api.kuiperz.dev';
   document.getElementById('settings-overlay').classList.add('show');
 }
 function closeSettings() { document.getElementById('settings-overlay').classList.remove('show'); }
-async function connect() {
-  NC_URL  = document.getElementById('nc-url').value.trim().replace(/\/$/,'');
-  NC_USER = document.getElementById('nc-user').value.trim();
-  NC_PASS = document.getElementById('nc-pass').value.trim();
-  NC_DIR  = BASE_PATH;
-  if (!NC_URL||!NC_USER||!NC_PASS) { alert('Please fill all fields.'); return; }
-  setStatus('Connecting...','loading');
-  localStorage.setItem('nc_url',NC_URL); localStorage.setItem('nc_user',NC_USER); localStorage.setItem('nc_pass',NC_PASS);
-  closeSettings(); await loadAllData();
-}
-function disconnect() {
-  ['nc_url','nc_user','nc_pass',CACHE_KEY].forEach(k=>localStorage.removeItem(k));
-  // per-month cache গুলোও মুছি
-  Object.keys(localStorage).filter(k=>k.startsWith('wc_month_')).forEach(k=>localStorage.removeItem(k));
-  NC_URL=NC_USER=NC_PASS=''; allRecordings=[]; filtered=[];
-  renderTable(); updateStats(); updatePlatformGrid(); updateAgentGrid2(); updateCharts();
-  setStatus('NOT CONNECTED',''); closeSettings(); setTimeout(openSettings,200);
-}
+function connect() { closeSettings(); loadAllData(); }
+function disconnect() { closeSettings(); }
 function setStatus(msg,type='') { const el=document.getElementById('status-bar'); el.textContent=msg; el.className=type; }
 
-// ── WebDAV ─────────────────────────────────────────────────────
-function davUrl(p) { return NC_URL+'/remote.php/dav/files/'+NC_USER+p; }
-function authHdr()  { return 'Basic '+btoa(NC_USER+':'+NC_PASS); }
-async function propfind(path,depth=1) {
-  const r = await fetch(PROXY+encodeURIComponent(davUrl(path)), {
-    method:'PROPFIND',
-    mode:'cors',
-    headers:{'Authorization':authHdr(),'Depth':String(depth),'Content-Type':'application/xml'},
-    body:'<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/></d:prop></d:propfind>'
-  });
-  if (!r.ok) throw new Error('HTTP '+r.status);
-  return r.text();
-}
-function parseEntries(xml) {
-  return [...new DOMParser().parseFromString(xml,'application/xml').querySelectorAll('response')].slice(1).map(el=>{
-    const href = decodeURIComponent(el.querySelector('href').textContent);
-    const name = href.split('/').filter(Boolean).pop();
-    const ctype = el.querySelector('getcontenttype')?.textContent||'';
-    const size  = parseInt(el.querySelector('getcontentlength')?.textContent||'0');
-    return {href,name,isDir:!ctype||ctype.includes('directory')||ctype==='',ctype,size};
+// ── API ────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const token = await currentUser.getIdToken();
+  return fetch(API + path, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) }
   });
 }
 
-// ── Load data (Monthly Index Mode) ────────────────────────────
-// নতুন strategy: প্রতি মাসের জন্য একটাই JSON index file পড়ে।
-// 2026_04.json format: NDJSON — প্রতি লাইনে একটা recording object।
-// ──────────────────────────────────────────────────────────────
-const INDEX_START_YEAR  = 2026;
-const INDEX_START_MONTH = 1; // January
-const CACHE_MONTHS      = 3; // localStorage এ শুধু last 3 মাস রাখব
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-// month number থেকে folder name বানায়: 4 → "April 2026"
-function _monthFolder(y, mNum) { return MONTH_NAMES[mNum-1] + ' ' + y; }
-
-// সব months generate করে যেগুলোর index file থাকতে পারে
-function _allMonthKeys() {
-  const now = new Date();
-  const keys = [];
-  let y = INDEX_START_YEAR, m = INDEX_START_MONTH;
-  while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth()+1)) {
-    keys.push({ y, mNum: m, m: String(m).padStart(2,'0') });
-    m++; if (m > 12) { m = 1; y++; }
-  }
-  return keys.reverse(); // newest first
+function normalizeRecording(r) {
+  const st = r.start_time || '';
+  r.datetime = st.slice(0, 10) + ' ' + st.slice(11, 19);
+  r.date     = st.slice(0, 10);
+  r.time     = st.slice(11, 19);
+  r.file_size_kb = r.file_size_bytes ? Math.round(r.file_size_bytes / 1024) : 0;
+  r._isVideo = r.format === 'mp4' || r.mode === 'screen_audio';
+  r.platform = normalizePlatform(r.platform);
+  // call_connected: if missing from API, default to true (Connected)
+  if (r.call_connected === undefined || r.call_connected === null) r.call_connected = true;
+  return r;
 }
 
-// Last N months এর keys
-function _recentMonthKeys(n) { return _allMonthKeys().slice(0, n); }
+// ── can current user edit call_connected? ──────────────────────
+function canEditConnected(rec){
+  if(!currentProfile) return false;
+  const role = currentProfile.role || 'agent';
+  if(role==='admin' || role==='supervisor') return true;
+  // agent: only own recordings
+  const myName=(currentProfile.agentName||'').toLowerCase();
+  return (rec.agent_name||rec._agentFolder||'').toLowerCase()===myName;
+}
 
-// Per-month localStorage key
-function _monthCacheKey(y, m) { return `wc_month_${y}_${m}`; }
-function _monthCacheTs(y, m)  { return `wc_month_ts_${y}_${m}`; }
-
-async function fetchMonthIndex(y, m, bypassCache=false, mNum) {
-  mNum = mNum || parseInt(m);
-  const folder = _monthFolder(y, mNum); // e.g. "April 2026"
-  const path = `${NC_DIR}/${y}/${folder}/${y}_${m}.json`;
-  // Cache hit check (শুধু recent months এর জন্য)
-  if (!bypassCache) {
-    try {
-      const ts = parseInt(localStorage.getItem(_monthCacheTs(y,m))||'0');
-      const isRecent = _recentMonthKeys(CACHE_MONTHS).some(k=>k.y==y&&k.m==m);
-      if (isRecent && Date.now()-ts < CACHE_TTL) {
-        const cached = JSON.parse(localStorage.getItem(_monthCacheKey(y,m))||'null');
-        if (cached && cached.length) {
-          cached.forEach(rec => buildRecordingPaths(rec, y, mNum));
-          return cached;
-        }
-      }
-    } catch(e) {}
-  }
-  const r = await fetch(PROXY + encodeURIComponent(davUrl(path)), {
-    mode: 'cors', headers: { 'Authorization': authHdr() }
-  });
-  if (!r.ok) return [];
+// ── Toggle call_connected via API ──────────────────────────────
+async function toggleConnected(recId, newVal){
+  const rec = allRecordings.find(r=>r.id===recId);
+  if(!rec) return;
+  if(!canEditConnected(rec)){ showToast('Permission denied'); return; }
+  const prev = rec.call_connected;
+  rec.call_connected = newVal; // optimistic update
+  refreshDashboard(); applyFilters();
   try {
-    const arr = await r.json();
-    if (!Array.isArray(arr)) return [];
-    arr.forEach(rec => buildRecordingPaths(rec, y, mNum));
-    // শুধু last CACHE_MONTHS মাস cache করি
-    const isRecent = _recentMonthKeys(CACHE_MONTHS).some(k=>k.y==y&&k.m==m);
-    if (isRecent) {
-      try {
-        localStorage.setItem(_monthCacheKey(y,m), JSON.stringify(arr));
-        localStorage.setItem(_monthCacheTs(y,m), String(Date.now()));
-      } catch(e) {
-        _pruneOldMonthCache();
-      }
-    }
-    return arr;
-  } catch(e) { return []; }
-}
-
-// CACHE_MONTHS এর বাইরের পুরনো month cache মুছে ফেলে
-function _pruneOldMonthCache() {
-  const keep = new Set(_recentMonthKeys(CACHE_MONTHS).map(k=>`wc_month_${k.y}_${k.m}`));
-  Object.keys(localStorage).forEach(key => {
-    if (key.startsWith('wc_month_') && !key.endsWith('_ts') && !keep.has(key)) {
-      localStorage.removeItem(key);
-      localStorage.removeItem(key.replace('wc_month_','wc_month_ts_').replace(/wc_month_ts_(\d+)_(\d+)/, 'wc_month_ts_$1_$2'));
-    }
-  });
-}
-
-// filename + date + agent থেকে recording paths বানায়
-function buildRecordingPaths(rec, y, mNum) {
-  const agent = rec._agentFolder || rec.agent_name || '';
-  const date  = rec.date || '';
-  const day   = date.slice(8, 10);
-  const fn    = rec.filename || '';
-  if (!fn || !day || !agent) return;
-  const monthFolder = _monthFolder(y, mNum);
-  // day folder format: "29.04.2026"
-  const m2 = String(mNum).padStart(2,'0');
-  const dayFolder = `${day}.${m2}.${y}`;
-  const folder = `${NC_DIR}/${y}/${monthFolder}/${dayFolder}/${agent}`;
-  const base   = fn.replace(/\.(wav|mp4|json)$/i, '');
-  if (fn.toLowerCase().endsWith('.mp4') || rec.format === 'mp4' || rec.mode === 'screen_audio') {
-    rec._mp4Path = `${folder}/${base}.mp4`;
-    rec._wavPath = `${folder}/${base}.wav`;
-  } else {
-    rec._wavPath = `${folder}/${base}.wav`;
-    rec._mp4Path = null;
-  }
-  // platform না থাকলে filename থেকে guess করি
-  if (!rec.platform) {
-    const fl = fn.toLowerCase();
-    if (fl.includes('whatsapp'))      rec.platform = 'WhatsApp';
-    else if (fl.includes('zoiper'))   rec.platform = 'ZoiPer5';
-    else if (fl.includes('ultraviewer')) rec.platform = 'UltraViewer';
-    else if (fl.includes('teamviewer'))  rec.platform = 'TeamViewer';
-    else if (fl.includes('anydesk'))     rec.platform = 'AnyDesk';
-    else if (fl.includes('zoom'))        rec.platform = 'Zoom';
-    else if (fl.includes('meet'))        rec.platform = 'GoogleMeet';
-    else if (fl.includes('teams'))       rec.platform = 'Teams';
-    else if (fl.includes('slack'))       rec.platform = 'Slack';
-    else if (fl.includes('jitsi'))       rec.platform = 'Jitsi';
-    else rec.platform = 'WhatsApp'; // default
+    const resp = await apiFetch('/api/recordings/'+recId, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({call_connected: newVal})
+    });
+    if(!resp.ok){ rec.call_connected=prev; refreshDashboard(); applyFilters(); showToast('Update failed: HTTP '+resp.status); return; }
+    showToast('Status updated');
+  } catch(e){
+    rec.call_connected=prev; refreshDashboard(); applyFilters(); showToast('Update failed: '+e.message);
   }
 }
 
-function _sortRecs(arr) {
-  arr.sort((a,b)=>{
-    const da=a.datetime||(a.date||'')+'T'+(a.time||'00:00');
-    const db=b.datetime||(b.date||'')+'T'+(b.time||'00:00');
-    return db.localeCompare(da);
-  });
-}
-
+// ── Load data ──────────────────────────────────────────────────
 async function loadAllData() {
-  setStatus('Loading...','loading'); allRecordings=[];
-  // পুরনো flat cache format পরিষ্কার করি (v2 → v3 migration)
-  localStorage.removeItem('wc_recordings_cache_v2');
-  localStorage.removeItem('wc_recordings_ts_v2');
-  _pruneOldMonthCache();
-  await fetchFreshData();
-  startAutoSync();
-}
-
-async function fetchFreshData() {
+  setStatus('Loading...', 'loading');
+  allRecordings = [];
   try {
-    allRecordings = [];
-    const months = _allMonthKeys();
-    // সব months parallel এ fetch — cache hit হলে instant, miss হলে network
-    const results = await Promise.allSettled(months.map(({y,m,mNum}) => fetchMonthIndex(y,m,false,mNum)));
-    results.forEach(r => { if (r.status==='fulfilled') allRecordings.push(...r.value); });
-    _sortRecs(allRecordings);
+    const today = new Date().toISOString().slice(0, 10);
+    const resp = await apiFetch('/api/analytics/recordings?from=2020-01-01&to=' + today + '&limit=5000');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    allRecordings = (data.recordings || []).map(normalizeRecording);
     finishLoad();
-    setStatus('Connected — '+allRecordings.length+' recordings','ok');
-  } catch(err) { setStatus('Error: '+err.message,'error'); }
-}
-
-let _syncTimer=null;
-let _lastMonthCount=-1; // নতুন recording detect করতে
-function startAutoSync(){
-  if(_syncTimer)clearInterval(_syncTimer);
-  const now=new Date();
-  _lastMonthCount = allRecordings.filter(r=>(r.date||'').startsWith(
-    `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
-  )).length;
-
-  // 60 seconds এ current month re-check
-  _syncTimer=setInterval(async function(){
-    if(!NC_URL)return;
-    try{
-      const now=new Date();
-      const y=now.getFullYear();
-      const m=String(now.getMonth()+1).padStart(2,'0');
-      // bypassCache=true — সবসময় fresh fetch করি
-      const freshRecs = await fetchMonthIndex(y, m, true, now.getMonth()+1);
-      if(!freshRecs.length) return;
-      const newCount = freshRecs.length;
-      if(newCount === _lastMonthCount) return; // কোনো পরিবর্তন নেই
-      _lastMonthCount = newCount;
-      // Current month replace করে merge
-      const prefix=`${y}-${m}`;
-      const otherRecs=allRecordings.filter(r=>(r.date||'').startsWith(prefix)===false);
-      allRecordings=[...freshRecs,...otherRecs];
-      _sortRecs(allRecordings);
-      finishLoad();
-      const diff = newCount - allRecordings.filter(r=>(r.date||'').startsWith(prefix)).length + freshRecs.length;
-      setStatus('Connected — '+allRecordings.length+' recordings','ok');
-      showToast('🔄 '+allRecordings.length+' recordings synced');
-    }catch(e){}
-  }, CACHE_TTL); // 60s
-}
-
-// Legacy fallback: পুরনো structure থেকে একটা নির্দিষ্ট agent folder সরাসরি পড়তে চাইলে
-async function loadFile(dir,file,agent,fileSize){
-  const p=dir+'/'+file;
-  const r=await fetch(PROXY+encodeURIComponent(davUrl(p)),{mode:'cors',headers:{'Authorization':authHdr()}});
-  if(!r.ok)return null;
-  const meta=await r.json();
-  const base=p.replace(/\.json$/,'');
-  meta._wavPath=base+'.wav';
-  meta._mp4Path=null;
-  meta._agentFolder=agent;
-  if(meta.format==='mp4'||meta.mode==='screen_audio'){
-    const fn=meta.filename||'';
-    meta._expectedMp4=dir+'/'+fn.replace(/\.wav$/i,'.mp4');
+    setStatus('Connected — ' + (data.total || allRecordings.length) + ' recordings', 'ok');
+  } catch (err) {
+    setStatus('Error: ' + err.message, 'error');
   }
-  if(!meta.file_size_kb&&fileSize)meta.file_size_kb=Math.round(fileSize/1024);
-  if(!meta.platform){const lc=(file+' '+dir).toLowerCase();if(lc.includes('zoiper'))meta.platform='ZoiPer5';else if(lc.includes('teamviewer'))meta.platform='TeamViewer';else if(lc.includes('anydesk'))meta.platform='AnyDesk';else if(lc.includes('ultraviewer'))meta.platform='UltraViewer';else if(lc.includes('meet'))meta.platform='GoogleMeet';else if(lc.includes('jitsi'))meta.platform='Jitsi';else if(lc.includes('zoom'))meta.platform='Zoom';else if(lc.includes('teams'))meta.platform='Teams';else if(lc.includes('whatsapp'))meta.platform='WhatsApp';}
-  meta.platform=normalizePlatform(meta.platform);
-  return meta;
 }
 
-async function checkMediaType(path,agent,file){// Check if mp4 exists for this recording
-const mp4path=path+'/'+file.replace('.json','.mp4');try{const r=await fetch(PROXY+encodeURIComponent(davUrl(mp4path)),{method:'HEAD',headers:{'Authorization':authHdr()}});if(r.ok)return mp4path;}catch(e){}return null;}
+async function loadYear(y) {
+  const recs = [];
+  return recs;
+}
+
 
 function finishLoad() {
+  setRecordingDateFilterToday();
+  setAgentRange2('today');
   _updateGlobalLabel();
   updateStats(); updateCharts(); updateTrendChart();
   updatePlatformGrid(); updateAgentGrid2();
@@ -1695,6 +1493,7 @@ function finishLoad() {
   updateQuickStats();
   startOnlineMonitor();
   document.getElementById('badge-filtered').textContent = allRecordings.length;
+  applyFilters();
 }
 
 // ── Stats ──────────────────────────────────────────────────────
@@ -1706,8 +1505,13 @@ function updateStats(){
   const inc=recs.filter(r=>r.call_type==='Incoming').length;
   const out=recs.filter(r=>r.call_type==='Outgoing').length;
   const tot=recs.length;
-  const sec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
-  const avg=tot?Math.round(sec/tot):0;
+  // Duration: only connected calls
+  const connRecs=recs.filter(r=>r.call_connected!==false);
+  const sec=connRecs.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  const avg=connRecs.length?Math.round(sec/connRecs.length):0;
+  // connected counts
+  const connCount=connRecs.length;
+  const notConnCount=recs.filter(r=>r.call_connected===false).length;
   document.getElementById('stat-total').textContent=tot;
   document.getElementById('stat-today').textContent=tc+' today';
   document.getElementById('stat-incoming').textContent=inc;
@@ -1715,7 +1519,12 @@ function updateStats(){
   document.getElementById('stat-outgoing').textContent=out;
   document.getElementById('stat-out-pct').textContent=tot?Math.round(out/tot*100)+'% of total':'—';
   document.getElementById('stat-duration').textContent=fmtDur(sec);
-  document.getElementById('stat-avg').textContent='avg '+fmtDur(avg);
+  document.getElementById('stat-avg').textContent='avg '+fmtDur(avg)+' (connected only)';
+  // connected stat card
+  const el=document.getElementById('stat-connected');
+  if(el) el.textContent=connCount;
+  const el2=document.getElementById('stat-connected-sub');
+  if(el2) el2.textContent=notConnCount+' not connected';
 }
 
 // ── Trend Chart ────────────────────────────────────────────────
@@ -1853,7 +1662,7 @@ function updatePlatformGrid(){
   const{from,to}=getPlatformRangeDates();
   const recs=allRecordings.filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;return true;});
   const platMap={};
-  recs.forEach(r=>{const p=r.platform||'WhatsApp';if(!platMap[p])platMap[p]={calls:0,incoming:0,outgoing:0,session:0,meeting:0,huddle:0,totalSec:0,hasVideo:0,hasAudio:0};platMap[p].calls++;const ct=(r.call_type||'').toLowerCase();if(ct==='incoming')platMap[p].incoming++;else if(ct==='outgoing')platMap[p].outgoing++;else if(ct==='session')platMap[p].session++;else if(ct==='meeting')platMap[p].meeting++;else if(ct==='huddle')platMap[p].huddle++;platMap[p].totalSec+=(r.duration_seconds||0);if(r._mp4Path)platMap[p].hasVideo++;else platMap[p].hasAudio++;});
+  recs.forEach(r=>{const p=r.platform||'WhatsApp';if(!platMap[p])platMap[p]={calls:0,incoming:0,outgoing:0,session:0,meeting:0,huddle:0,totalSec:0,hasVideo:0,hasAudio:0,connected:0,notConnected:0};platMap[p].calls++;const ct=(r.call_type||'').toLowerCase();if(ct==='incoming')platMap[p].incoming++;else if(ct==='outgoing')platMap[p].outgoing++;else if(ct==='session')platMap[p].session++;else if(ct==='meeting')platMap[p].meeting++;else if(ct==='huddle')platMap[p].huddle++;if(r.call_connected!==false){platMap[p].connected++;platMap[p].totalSec+=(r.duration_seconds||0);}else{platMap[p].notConnected++;}if(r._mp4Path)platMap[p].hasVideo++;else platMap[p].hasAudio++;});
   // Per-platform color palette
   const PC={
     'WhatsApp':   {grad:'linear-gradient(90deg,#25d366,#128c7e)', color:'#25d366', glow:'rgba(37,211,102,.15)', shadow:'rgba(37,211,102,.12)', glowDk:'rgba(37,211,102,.25)', shadowDk:'rgba(37,211,102,.2)'},
@@ -1870,10 +1679,15 @@ function updatePlatformGrid(){
   };
   const defPC={grad:'linear-gradient(90deg,var(--accent),var(--accent2))',color:'var(--accent)',glow:'var(--accent-lt)',shadow:'rgba(37,99,235,.10)',glowDk:'rgba(37,99,235,.2)',shadowDk:'rgba(37,99,235,.18)'};
   const sorted=Object.entries(platMap).sort((a,b)=>b[1].calls-a[1].calls);
-  const totalCalls=recs.length;const totalSec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  const totalCalls=recs.length;
+  const allConnRecs=recs.filter(r=>r.call_connected!==false);
+  const totalSec=allConnRecs.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  const allConn=recs.filter(r=>r.call_connected!==false).length;
+  const allNotConn=recs.filter(r=>r.call_connected===false).length;
   let html='<div class="platform-card card" style="--pc-grad:'+defPC.grad+';--pc-color:'+defPC.color+';--pc-glow:'+defPC.glow+';--pc-shadow:'+defPC.shadow+';--pc-glow-dk:'+defPC.glowDk+';--pc-shadow-dk:'+defPC.shadowDk+';">'
     +'<div class="platform-name" style="font-size:13px;color:var(--text3);font-weight:600;margin-bottom:8px;">All Platforms</div>'
-    +'<div class="platform-stats">Calls: <b>'+totalCalls+'</b><br>Duration: <b>'+fmtDur(totalSec)+'</b><br>Avg: <b>'+fmtDur(totalCalls?Math.round(totalSec/totalCalls):0)+'</b></div>'
+    +'<div class="platform-stats">Calls: <b>'+totalCalls+'</b><br>Duration: <b>'+fmtDur(totalSec)+'</b><br>Avg: <b>'+fmtDur(allConnRecs.length?Math.round(totalSec/allConnRecs.length):0)+'</b><br>'
+    +'<span style="color:var(--green);">&#10003; '+allConn+'</span> &nbsp;<span style="color:var(--red);">&#10007; '+allNotConn+'</span></div>'
     +'<div class="platform-pct-bar"><div class="platform-pct-fill" style="width:100%;"></div></div></div>';
   html+=sorted.map(function([p,d]){
     const pct=totalCalls?Math.round(d.calls/totalCalls*100):0;
@@ -1895,7 +1709,8 @@ function updatePlatformGrid(){
       +'<div class="platform-stats">Calls: <b>'+d.calls+'</b> <span style="color:var(--text3);font-size:11px;">('+pct+'%)</span><br>'
       +breakdown
       +'Duration: <b>'+fmtDur(d.totalSec)+'</b><br>'
-      +'Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div>'
+      +'Avg: <b>'+fmtDur(d.connected?Math.round(d.totalSec/d.connected):0)+'</b><br>'
+      +'<span style="color:var(--green);">&#10003; '+d.connected+'</span> &nbsp;<span style="color:var(--red);">&#10007; '+d.notConnected+'</span></div>'
       +'<div class="platform-pct-bar"><div class="platform-pct-fill" style="width:'+pct+'%;"></div></div>'
       +'</div>';
   }).join('');
@@ -1936,20 +1751,23 @@ function refreshAgentGrid2(){updateAgentGrid2();}
 function updateAgentGrid2(){
   const{from,to}=getAgentRangeDates2();
   const recs=allRecordings.filter(r=>{if(from&&r.date<from)return false;if(to&&r.date>to)return false;return true;});
-  const agents={};recs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';if(!agents[n])agents[n]={calls:0,incoming:0,outgoing:0,totalSec:0};agents[n].calls++;if(r.call_type==='Incoming')agents[n].incoming++;else if(r.call_type==='Outgoing')agents[n].outgoing++;agents[n].totalSec+=(r.duration_seconds||0);});
+  const agents={};recs.forEach(r=>{const n=r.agent_name||r._agentFolder||'Unknown';if(!agents[n])agents[n]={calls:0,incoming:0,outgoing:0,totalSec:0,connected:0,notConnected:0};agents[n].calls++;if(r.call_type==='Incoming')agents[n].incoming++;else if(r.call_type==='Outgoing')agents[n].outgoing++;if(r.call_connected!==false){agents[n].connected++;agents[n].totalSec+=(r.duration_seconds||0);}else{agents[n].notConnected++;}});
   const sorted=Object.entries(agents).sort((a,b)=>b[1].calls-a[1].calls);
-  const totSec=recs.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  const connRecs=recs.filter(r=>r.call_connected!==false);
+  const totSec=connRecs.reduce((s,r)=>s+(r.duration_seconds||0),0);
   const totalCallsAll=recs.length;
   let html='<div class="agent-card card" style="--pc-grad:linear-gradient(90deg,var(--accent2),var(--accent));padding:11px 13px;" onclick="filterByAgent(\'\')">'
     +'<div class="agent-name" style="font-size:13px;margin-bottom:4px;">All Agents</div>'
     +'<div class="agent-calls-highlight">'+recs.length+'<span class="agent-calls-pct">calls</span></div>'
-    +'<div class="agent-stats" style="font-size:11px;">Duration: <b>'+fmtDur(totSec)+'</b><br>Avg: <b>'+fmtDur(recs.length?Math.round(totSec/recs.length):0)+'</b></div></div>';
+    +'<div class="agent-stats" style="font-size:11px;">Duration: <b>'+fmtDur(totSec)+'</b><br>Avg: <b>'+fmtDur(connRecs.length?Math.round(totSec/connRecs.length):0)+'</b><br>'
+    +'<span style="color:var(--green);">&#10003; '+recs.filter(r=>r.call_connected!==false).length+'</span> &nbsp;<span style="color:var(--red);">&#10007; '+recs.filter(r=>r.call_connected===false).length+'</span></div></div>';
   html+=sorted.map(function(e){const n=e[0],d=e[1];
     const pct=totalCallsAll?Math.round(d.calls/totalCallsAll*100):0;
     return '<div class="agent-card card '+(activeAgentFilter===n?'active':'')+'" style="padding:11px 13px;" onclick="filterByAgent(\''+n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
     +'<div class="agent-name" style="font-size:13px;margin-bottom:4px;">'+n+'</div>'
     +'<div class="agent-calls-highlight">'+d.calls+'<span class="agent-calls-pct">'+pct+'%</span></div>'
-    +'<div class="agent-stats" style="font-size:11px;">In: <b>'+d.incoming+'</b> &nbsp;Out: <b>'+d.outgoing+'</b><br>Dur: <b>'+fmtDur(d.totalSec)+'</b> &nbsp;Avg: <b>'+fmtDur(d.calls?Math.round(d.totalSec/d.calls):0)+'</b></div></div>';}).join('');
+    +'<div class="agent-stats" style="font-size:11px;">In: <b>'+d.incoming+'</b> &nbsp;Out: <b>'+d.outgoing+'</b><br>Dur: <b>'+fmtDur(d.totalSec)+'</b> &nbsp;Avg: <b>'+fmtDur(d.connected?Math.round(d.totalSec/d.connected):0)+'</b><br>'
+    +'<span style="color:var(--green);">&#10003; '+d.connected+'</span> &nbsp;<span style="color:var(--red);">&#10007; '+d.notConnected+'</span></div></div>';}).join('');
   document.getElementById('agent-grid2').innerHTML=html;
   document.getElementById('rec-agent-hint').textContent=activeAgentFilter?'— '+activeAgentFilter:'';
 }
@@ -1961,7 +1779,7 @@ function filterByAgent(name){
     activeAgentFilter = name;
   }
   document.getElementById('rec-agent-hint').textContent = activeAgentFilter ? '— ' + activeAgentFilter : '';
-  updateAgentGrid2(); 
+  updateAgentGrid2();
   applyFilters();
 }
 
@@ -1969,26 +1787,15 @@ function filterByAgent(name){
 function timeSince(ts){const d=Math.floor((Date.now()-ts)/1000);if(d<60)return d+'s ago';if(d<3600)return Math.floor(d/60)+'m ago';if(d<86400)return Math.floor(d/3600)+'h ago';return Math.floor(d/86400)+'d ago';}
 async function fetchAgentStatus(){
   try{
-    const r=await fetch(STATUS_URL+'?_='+Date.now());
+    const r=await apiFetch('/api/agents/status');
     if(!r.ok)return;
     const data=await r.json();
     const now=Date.now();
-
-    // Parse "YYYY-MM-DD HH:MM:SS" as LOCAL time (not UTC)
-    // Split manually so browser doesn't treat it as UTC
-    function parseLocalTs(str){
-      if(!str)return 0;
-      const p=str.split(/[- :]/);
-      // new Date(year, month-1, day, hour, min, sec) → local time
-      return new Date(+p[0],+p[1]-1,+p[2],+p[3]||0,+p[4]||0,+p[5]||0).getTime();
-    }
-
     _agentStatus=Object.entries(data).map(function(e){
       const id=e[0],info=e[1];
-      const ts=parseLocalTs(info.last_seen||'');
+      const ts=info.last_heartbeat?new Date(info.last_heartbeat).getTime():0;
       return{id,name:info.agent_name||id,ts,online:(now-ts)<ONLINE_MS};
     }).sort((a,b)=>b.ts-a.ts);
-
   }catch(e){}
 }
 function renderAgentStatus(){
@@ -2031,15 +1838,19 @@ function applyFilters(){
   currentPage=1;renderTable();
 }
 function clearFilters(){
-  document.getElementById('search').value='';
-  document.getElementById('filter-type').value='';
-  document.getElementById('filter-platform').value='';
-  document.getElementById('filter-date-from').value='';
-  document.getElementById('filter-date-to').value='';
-  activeAgentFilter='';
-  document.getElementById('rec-agent-hint').textContent='';
-  updateAgentGrid2();applyFilters();
+  document.getElementById('search').value = '';
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-platform').value = '';
+
+  setRecordingDateFilterToday();
+
+  activeAgentFilter = '';
+  document.getElementById('rec-agent-hint').textContent = '';
+
+  updateAgentGrid2();
+  applyFilters();
 }
+
 function sortBy(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}applyFilters();}
 function changeRows(){const v=document.getElementById('rows-per-page').value;rowsPerPage=v==='all'?Infinity:parseInt(v);currentPage=1;renderTable();}
 
@@ -2064,12 +1875,9 @@ function normalizePlatform(p){
 
 function getPlatformIcon(p){return '';} // no emoji — professional look
 function getMediaPath(r){
-  if(r._mp4Path){
-    const url=PROXY+encodeURIComponent(davUrl(r._mp4Path));
-    return{url,type:'video',ext:'mp4',fname:(r.filename||'recording').replace(/\.(wav|json)$/,'.mp4')};
-  }
-  const url=PROXY+encodeURIComponent(davUrl(r._wavPath));
-  return{url,type:'audio',ext:'wav',fname:r.filename||'recording.wav'};
+  const isVideo=r._isVideo;
+  const ext=isVideo?'mp4':(r.format||'wav');
+  return{url:API+'/api/recordings/'+r.id+'/stream',type:isVideo?'video':'audio',ext,fname:r.filename||('recording.'+ext)};
 }
 
 function renderTable(){
@@ -2085,6 +1893,14 @@ function renderTable(){
     const media=getMediaPath(r);
     const platformLabel=r.platform?r.platform:'—';
     const mediaIcon='▶';
+    const connected = r.call_connected !== false;
+    const canEdit = canEditConnected(r);
+    const badgeCls = 'conn-badge '+(connected?'connected':'notconnected')+(canEdit?'':' readonly');
+    const badgeTitle = canEdit ? (connected?'Click to mark Not Connected':'Click to mark Connected') : (connected?'Connected':'Not Connected');
+    const badgeClick = canEdit
+      ? 'onclick="event.stopPropagation();toggleConnected(\''+r.id+'\','+(connected?'false':'true')+')"'
+      : '';
+    const statusCell = '<td onclick="event.stopPropagation()"><span class="'+badgeCls+'" title="'+badgeTitle+'" '+badgeClick+'><span class="conn-dot"></span>'+(connected?'Connected':'Not Connected')+'</span></td>';
     return '<tr onclick="openMedia('+(start+i)+')">'
       +'<td>'+(r.datetime||(r.date+' '+(r.time||'')))+'</td>'
       +'<td><span class="agent-tag">'+(r.agent_name||r._agentFolder)+'</span></td>'
@@ -2092,6 +1908,7 @@ function renderTable(){
       +'<td style="font-size:13px;">'+platformLabel+'</td>'
       +'<td><span class="badge badge-'+(r.call_type||'').toLowerCase()+'">'+(r.call_type||'—')+'</span></td>'
       +'<td>'+(r.duration_formatted||fmtDur(r.duration_seconds)||'—')+'</td>'
+      +statusCell
       +'<td>'+(r.file_size_kb?r.file_size_kb+'KB':'—')+'</td>'
       +'<td onclick="event.stopPropagation()"><div class="action-btns">'
       +'<button class="tbl-btn" onclick="openMedia('+(start+i)+')" title="Play">'+mediaIcon+'</button>'
@@ -2113,10 +1930,11 @@ function renderTable(){
 function goPage(p){const rpp=rowsPerPage===Infinity?filtered.length:rowsPerPage;const tot=Math.ceil(filtered.length/rpp);if(p<1||p>tot)return;currentPage=p;renderTable();}
 
 // ── Media Player (Native) ───────────────────────────────────────
-function openMedia(i){
+async function openMedia(i){
   const r = filtered[i];
   const media = getMediaPath(r);
   currentAudioUrl = media.url;
+
   document.getElementById('audio-title').textContent = r.filename || 'Recording';
   const platLabel = r.platform
     ? '<span style="background:var(--accent-lt);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:11px;">'+r.platform+'</span> · ' : '';
@@ -2130,25 +1948,32 @@ function openMedia(i){
   const videoEl = document.getElementById('video-player');
   const audioEl = document.getElementById('audio-player');
 
-  // Stop and reset both
   videoEl.pause(); videoEl.removeAttribute('src'); videoEl.load();
   audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
-
-  if(isVideo){
-    audioEl.style.display = 'none';
-    videoEl.style.display = 'block';
-    videoEl.src = media.url;
-    videoEl.load();
-  } else {
-    videoEl.style.display = 'none';
-    audioEl.style.display = 'block';
-    audioEl.src = media.url;
-    audioEl.load();
-  }
-
-  document.getElementById('audio-dl').href = media.url;
-  document.getElementById('audio-dl').download = media.fname;
   document.getElementById('audio-overlay').classList.add('show');
+
+  try {
+    const resp = await apiFetch('/api/recordings/' + r.id + '/stream');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const objUrl = URL.createObjectURL(await resp.blob());
+    if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    currentBlobUrl = objUrl;
+
+    if(isVideo){
+      audioEl.style.display = 'none';
+      videoEl.style.display = 'block';
+      videoEl.src = objUrl; videoEl.load();
+    } else {
+      videoEl.style.display = 'none';
+      audioEl.style.display = 'block';
+      audioEl.src = objUrl; audioEl.load();
+    }
+    document.getElementById('audio-dl').href = objUrl;
+    document.getElementById('audio-dl').download = media.fname;
+  } catch(e) {
+    showToast('Could not load recording: ' + e.message);
+    document.getElementById('audio-overlay').classList.remove('show');
+  }
 }
 
 // Double-click fullscreen on native video
@@ -2171,6 +1996,7 @@ function closeAudio(){
   const audioEl = document.getElementById('audio-player');
   videoEl.pause(); videoEl.removeAttribute('src'); videoEl.load(); videoEl.style.display='none';
   audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); audioEl.style.display='none';
+  if(currentBlobUrl){ URL.revokeObjectURL(currentBlobUrl); currentBlobUrl=''; }
 }
 function copyAudioLink(){navigator.clipboard.writeText(currentAudioUrl).then(()=>showToast('Link copied!'));}
 function copyLink(i){const r=filtered[i];const media=getMediaPath(r);navigator.clipboard.writeText(media.url).then(()=>showToast('Link copied!'));}
@@ -2185,7 +2011,7 @@ function doExport(){
   const f=document.getElementById('export-date-from').value,to=document.getElementById('export-date-to').value;
   const data=getExportData(a,t,f,to);if(!data.length){showToast('No data to export');return;}
   const headers=['Date','Time','Agent','Caller','Platform','Type','Duration','Size (KB)','Link'];
-  const rows=data.map(r=>[r.date||'',r.time||'',r.agent_name||r._agentFolder||'',r.caller||'',r.platform||'',r.call_type||'',r.duration_formatted||fmtDur(r.duration_seconds)||'',r.file_size_kb||'',davUrl(r._wavPath)]);
+  const rows=data.map(r=>[r.date||'',r.time||'',r.agent_name||'',r.caller||'',r.platform||'',r.call_type||'',r.duration_formatted||fmtDur(r.duration_seconds)||'',r.file_size_kb||'',API+'/api/recordings/'+r.id+'/stream']);
   const csv=[headers,...rows].map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);const a2=document.createElement('a');
@@ -2200,16 +2026,17 @@ function drpFmtDate(val){
   return d+'/'+m+'/'+y;
 }
 function drpUpdateLabel(){
-  const f=document.getElementById('filter-date-from').value;
-  const t=document.getElementById('filter-date-to').value;
+  const f=(document.getElementById('filter-date-from')||{}).value||'';
+  const t=(document.getElementById('filter-date-to')||{}).value||'';
   const lbl=document.getElementById('drp-label');
   const clr=document.getElementById('drp-clear');
+  if(!lbl)return;
   if(f||t){
     lbl.textContent=(f?drpFmtDate(f):'...')+' – '+(t?drpFmtDate(t):'...');
-    clr.classList.add('show');
+    if(clr)clr.classList.add('show');
   } else {
-    lbl.textContent='All Dates';
-    clr.classList.remove('show');
+    lbl.textContent = 'Today';
+    if(clr)clr.classList.remove('show');
   }
 }
 function drpToggle(){
@@ -2221,17 +2048,37 @@ function drpToggle(){
 }
 function drpChange(){drpUpdateLabel();}
 function drpApply(){
-  document.getElementById('drp-panel').classList.remove('open');
-  document.getElementById('drp-btn').classList.remove('open');
+  const panel=document.getElementById('drp-panel');
+  const btn=document.getElementById('drp-btn');
+  if(panel)panel.classList.remove('open');
+  if(btn)btn.classList.remove('open');
   applyFilters();
 }
 function drpClear(){
-  document.getElementById('filter-date-from').value='';
-  document.getElementById('filter-date-to').value='';
-  drpUpdateLabel();
-  document.getElementById('drp-panel').classList.remove('open');
-  document.getElementById('drp-btn').classList.remove('open');
+  setRecordingDateFilterToday();
+  const panel=document.getElementById('drp-panel');
+  const btn=document.getElementById('drp-btn');
+  if(panel)panel.classList.remove('open');
+  if(btn)btn.classList.remove('open');
   applyFilters();
+}
+
+function todayISO(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+}
+
+function setRecordingDateFilterToday(){
+  const today = todayISO();
+
+  const from = document.getElementById('filter-date-from');
+  const to   = document.getElementById('filter-date-to');
+
+  if(from) from.value = today;
+  if(to)   to.value = today;
+
+  drpUpdateLabel();
 }
 // Close panel on outside click
 document.addEventListener('click',function(e){
@@ -2299,12 +2146,18 @@ function updateTodaySummary(){
   todayRecs.forEach(r=>{const t=r.time||(r.datetime?r.datetime.split(' ')[1]:'');if(t){const h=parseInt(t);if(!isNaN(h))byhour[h]++;}});
   const peakH=byhour.indexOf(Math.max(...byhour));
   document.getElementById('td-peak').textContent=todayRecs.length?(peakH+'h'):'—';
-  // Avg duration today
-  const totSec=todayRecs.reduce((s,r)=>s+(r.duration_seconds||0),0);
-  document.getElementById('td-avg').textContent=todayRecs.length?fmtDur(Math.round(totSec/todayRecs.length)):'—';
+  // Avg duration — connected only
+  const connToday=todayRecs.filter(r=>r.call_connected!==false);
+  const totSec=connToday.reduce((s,r)=>s+(r.duration_seconds||0),0);
+  document.getElementById('td-avg').textContent=connToday.length?fmtDur(Math.round(totSec/connToday.length)):'—';
   // Active agents today
   const agents=new Set(todayRecs.map(r=>r.agent_name||r._agentFolder||'Unknown'));
   document.getElementById('td-agents').textContent=agents.size||'0';
+  // Connected / Not Connected today
+  const connCount=todayRecs.filter(r=>r.call_connected!==false).length;
+  const notConnCount=todayRecs.filter(r=>r.call_connected===false).length;
+  const elC=document.getElementById('td-connected'); if(elC) elC.textContent=connCount;
+  const elN=document.getElementById('td-notconnected'); if(elN) elN.textContent=notConnCount;
 }
 
 // ── Quick Stats (sidebar) ───────────────────────────────────────
